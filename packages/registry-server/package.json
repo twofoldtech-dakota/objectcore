@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@objectcore/registry-core": "workspace:*",
+    "@objectcore/registry-db": "workspace:*",
     "hono": "^4.6.0"
   }
 }

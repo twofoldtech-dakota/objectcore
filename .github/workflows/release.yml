@@ -108,3 +108,13 @@ jobs:
         with:
           name: marketplace-pinned
           path: dist/marketplace.pinned.json
+
+      # Stage 3: push the published catalog into the registry DB so the live backend
+      # serves it with no redeploy. Self-gates on DATABASE_URL — a green no-op until
+      # the registry DB secret is configured.
+      - name: Ingest pinned catalog into the registry DB
+        if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != ''
+        run: bun run registry:ingest
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}

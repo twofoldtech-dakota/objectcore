@@ -1,0 +1,7 @@
+# The committed catalog/artifacts are byte-compared against deriveCatalog's output
+# (LF). Pin them to LF on checkout so a Windows working tree (core.autocrlf=true)
+# doesn't turn them into CRLF and break `bun run check:catalog` locally (CI on Linux
+# is unaffected). Scoped to the compared artifacts to avoid a repo-wide renormalization;
+# run `git add --renormalize .` under `* text=auto eol=lf` separately if you want LF everywhere.
+.claude-plugin/marketplace.json text eol=lf
+dist/marketplace.pinned.json text eol=lf

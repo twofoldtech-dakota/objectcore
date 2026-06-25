@@ -27,7 +27,10 @@ bun run release:version          # Stage 2: consume changesets -> bump plugin.js
 bun run release:publish          # Stage 2: tag {plugin}--v{semver}, SHA-pin the catalog, (CI) attest
 bun run check:catalog            # read-only: validate every plugin + assert marketplace.json is in sync (no writes)
 bun run check                    # the one-command gate = tsc + check:catalog + test + eval (what CI runs)
-bun run registry:dev            # serve http://localhost:8787/v1/marketplace.json
+bun run registry:dev            # serve http://localhost:8787/v1/marketplace.json (Git source, dev loop)
+bun run registry:prod           # Stage 3: serve the SHA-pinned catalog from the registry DB (RegistryDbSource); OBJECTCORE_SOURCE=db|file
+bun run db:migrate              # Stage 3: apply the registry DB schema (needs DATABASE_URL; no-op otherwise)
+bun run registry:ingest [path]  # Stage 3: push dist/marketplace.pinned.json into the registry DB (RegistryDbSink; needs DATABASE_URL)
 bunx tsc                         # typecheck (tsconfig is noEmit; there is no separate lint step)
 ```
 
@@ -121,6 +124,37 @@ run inside `validateAll`): a hand-rolled, dependency-free strict check that reje
 fields (a `keyword`/`repositry` typo) and wrong types on every spec field — kept zero-dep to preserve
 the pure core, the same reason it hand-rolls its kebab regex.
 
+### registry backend + `@objectcore/registry-db` (Stage 3, the backend)
+
+Stage 3 operates the HTTP backend and flips the catalog source from Git to a DB — by design a
+**relocation, not a rewrite**: only the `CatalogSource` (and the deploy target) swap; the
+`/v1/marketplace.json` route, its output contract, and `deriveCatalog` never change.
+
+- **The served catalog is the SHA-pinned (git-subdir) form**, not the committed bare-path file —
+  bare relative paths only resolve under Git distribution (AGENTS.md). Prod serving is the same
+  `shaPin` derivation Stage 2 already produces, sourced from the DB.
+- **`createApp` injects the `CatalogSource`** (`packages/registry-server/src/app.ts`) and accepts
+  `derive` as opts *or* a resolver — the DB path uses the resolver to attach `shaPin`/`repoUrl`
+  from the same rows it serves. `dev.ts` wires `GitWorkspaceSource` (bare-path, local loop);
+  `prod.ts` wires `RegistryDbSource` (`OBJECTCORE_SOURCE=db`, the default) or serves a baked
+  `dist/marketplace.pinned.json` verbatim (`=file`, break-glass).
+- **`RegistryDbSource`/`RegistryDbSink`** are ports in the pure core (`sources.ts`/`sinks.ts`,
+  zero new deps) over a `CatalogStore` interface. **Reads swap the source, writes swap the sink:**
+  `release:publish` derives the pinned catalog and `registry:ingest` feeds it to `RegistryDbSink`
+  (consuming the derivation, so the DB can't diverge); the server reads rows back through
+  `RegistryDbSource` and re-runs the same `deriveCatalog`. The DB stores RAW manifests + pin
+  coordinates, never finished entries — one derivation path holds.
+- **`@objectcore/registry-db`** is the only package that depends on `@libsql/client` (Turso),
+  keeping the core dependency-free. It ships `LibSqlCatalogStore`, `InMemoryCatalogStore` (tests /
+  no-DB local dev), and the schema (`plugins`, append-only `plugin_versions`, `channels`).
+- **Hosting: Fly.io** (`Dockerfile`, `fly.toml`) runs the Bun + Hono entry unchanged; secrets
+  `DATABASE_URL` + `TURSO_AUTH_TOKEN`; `objectcore.ai` via `flyctl certs add`. `deploy.yml` deploys
+  on merge to main, **inert until `FLY_API_TOKEN` is set**. Release CI runs `registry:ingest` so the
+  live backend updates with no redeploy (DB-mode CLIs self-gate on `DATABASE_URL`).
+- **Later triggers are additive, behind the seam** (designed, not built): search (`/v1/search`),
+  telemetry (`/v1/events`), channels (`/v1/canary/marketplace.json`), OIDC publish
+  (`POST /v1/plugins`, re-enforcing the provenance gate). `/v1/marketplace.json` stays frozen.
+
 ### Repo CLI wiring (`scripts/_workspace.ts`, `scripts/_finalize.ts`)
 
 `scripts/_workspace.ts` (not runnable — underscore prefix) is the single place that turns `objectcore.config.json` + the plugins dir into the `(plugins, catalog)` pair via one `deriveCatalog` call. `build-marketplace`, `check-catalog`, `eval`, `forge-scaffold`, `forge-meta`, and the `release-*` CLIs all import `loadWorkspace`/`loadConfig` from it — so the "single derivation path" holds at the wiring level, not just the function level. `scripts/_finalize.ts`'s `syncAndGate` is the shared post-scaffold tail (re-derive → validate → write → output+coverage evals) used by both forge CLIs. `scripts/_release.ts` is the analogous edge for the release CLIs (changeset reading, the `plugin.json` version edit, git tag/sha/remote helpers, the MCP-bundle scan).
@@ -150,4 +184,4 @@ the pure core, the same reason it hand-rolls its kebab regex.
 - The `OC/` directory holds a packaged snapshot (zip + readme + marketplace.json), not the working source.
 
 ## Staging
-**Stage 0** (the seam, validation floor, dev server, example plugins), **Stage 1** (the meta-plugins + eval harness gate), and **Stage 2** (Changesets release CI — `release-manager` + `@objectcore/release`: version, tag `{plugin}--v{semver}`, SHA-pin via `deriveCatalog`'s `shaPin` opt, attest; plus strict manifest schema validation) are **built**. **Stage 3** (pending) = flip `RegistryDbSource` + HTTP backend at the first real trigger (search/telemetry, dynamic catalogs, >~50 plugins, or OIDC publishing). When extending, keep new work behind the existing ports rather than adding new paths.
+**Stage 0** (the seam, validation floor, dev server, example plugins), **Stage 1** (the meta-plugins + eval harness gate), and **Stage 2** (Changesets release CI — `release-manager` + `@objectcore/release`: version, tag `{plugin}--v{semver}`, SHA-pin via `deriveCatalog`'s `shaPin` opt, attest; plus strict manifest schema validation) are **built**. **Stage 3** (built) = the HTTP backend operates and the catalog source flips Git → DB: `@objectcore/registry-db` (Turso/libSQL `CatalogStore`), `RegistryDbSource`/`RegistryDbSink`, `prod.ts`, ingestion in release CI, and Fly.io deploy (`Dockerfile`/`fly.toml`/`deploy.yml`). No consumer-facing trigger feature (search/telemetry/channels/OIDC) is built yet — those slot in as **additive routes** behind the frozen `/v1/marketplace.json` seam. The remaining operator work is provisioning: the Fly app + Turso DB, `objectcore.ai` DNS/TLS, and the `FLY_API_TOKEN`/`DATABASE_URL`/`TURSO_AUTH_TOKEN` secrets. When extending, keep new work behind the existing ports rather than adding new paths.

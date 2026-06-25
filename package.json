@@ -15,10 +15,14 @@
     "check:catalog": "bun run scripts/check-catalog.ts",
     "check": "bunx tsc && bun run check:catalog && bun test && bun run eval",
     "registry:dev": "bun run packages/registry-server/src/dev.ts",
+    "registry:prod": "bun run packages/registry-server/src/prod.ts",
+    "registry:ingest": "bun run scripts/registry-ingest.ts",
+    "db:migrate": "bun run scripts/db-migrate.ts",
     "test": "bun test"
   },
   "dependencies": {
     "@objectcore/registry-core": "workspace:*",
+    "@objectcore/registry-db": "workspace:*",
     "@objectcore/eval": "workspace:*",
     "@objectcore/forge": "workspace:*",
     "@objectcore/release": "workspace:*"

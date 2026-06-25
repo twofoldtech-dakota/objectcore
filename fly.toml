@@ -1,0 +1,31 @@
+# Fly.io deployment for the ObjectCore registry backend (Stage 3).
+# The permanent seam is the URL: https://objectcore.ai/v1/marketplace.json
+#
+# Secrets (NOT here — set with `flyctl secrets set`):
+#   DATABASE_URL       libsql://<db>.turso.io        (or file:./local.db for testing)
+#   TURSO_AUTH_TOKEN   <token>
+# Custom domain + TLS:  flyctl certs add objectcore.ai
+
+app = "objectcore-registry"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  OBJECTCORE_SOURCE = "db"
+  OBJECTCORE_CHANNEL = "stable"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
