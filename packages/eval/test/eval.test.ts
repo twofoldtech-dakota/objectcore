@@ -8,7 +8,7 @@ import type { MarketplaceJson, WorkspacePlugin } from "@objectcore/registry-core
 
 import { parseFrontmatter, collectSkillSurfaces, extractSurfaces } from "../src/trigger-surface";
 import { runOutputEvals } from "../src/output";
-import { runCoverageEvals } from "../src/coverage";
+import { runCoverageEvals, runReadinessEvals } from "../src/coverage";
 import { MockJudge } from "../src/judge";
 import { runPluginActivation } from "../src/activation";
 import { buildReport, isGreen } from "../src/runner";
@@ -121,6 +121,45 @@ test("coverage: a skill with a matching positive case passes; an uncovered skill
     const ungated = results.find((r) => r.plugin === "ungated");
     expect(ungated?.passed).toBe(false);
     expect(ungated?.level).toBe("error");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("coverage: a skill-bearing plugin with no negative case fails has-negative-case", async () => {
+  const root = await mkdtemp(join(tmpdir(), "cov-neg-"));
+  try {
+    const dir = join(root, "no-neg");
+    await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+    await writeFile(join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "no-neg", version: "0.0.1", description: "d" }) + "\n");
+    await mkdir(join(dir, "skills", "s"), { recursive: true });
+    await writeFile(join(dir, "skills", "s", "SKILL.md"), `---\nname: s\ndescription: d\n---\nreal body here\n`);
+    await mkdir(join(dir, "evals"), { recursive: true });
+    await writeFile(join(dir, "evals", "activation.json"), JSON.stringify({ cases: [{ prompt: "p", expect: "s" }] }) + "\n");
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runReadinessEvals(plugins);
+    const neg = results.find((r) => r.plugin === "no-neg" && r.name === "has-negative-case");
+    expect(neg?.passed).toBe(false);
+    expect(neg?.level).toBe("error");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("coverage: a skill body still carrying the forge:todo stub fails body-filled", async () => {
+  const root = await mkdtemp(join(tmpdir(), "cov-stub-"));
+  try {
+    const dir = join(root, "stubby");
+    await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+    await writeFile(join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "stubby", version: "0.0.1", description: "d" }) + "\n");
+    await mkdir(join(dir, "skills", "s"), { recursive: true });
+    await writeFile(join(dir, "skills", "s", "SKILL.md"), `---\nname: s\ndescription: d\n---\n<!-- forge:todo --> unfilled\n`);
+    await mkdir(join(dir, "evals"), { recursive: true });
+    await writeFile(join(dir, "evals", "activation.json"), JSON.stringify({ cases: [{ prompt: "p", expect: "s" }, { prompt: "n", expect: null }] }) + "\n");
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runReadinessEvals(plugins);
+    const body = results.find((r) => r.plugin === "stubby" && r.name === "body-filled:s");
+    expect(body?.passed).toBe(false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
