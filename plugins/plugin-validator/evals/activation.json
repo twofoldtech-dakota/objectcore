@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "My plugin won't load into Claude Code — help me figure out which manifest or layout rule it's breaking.",
+      "expect": "validating-plugins",
+      "note": "diagnosing a failed load against the hard rules"
+    },
+    {
+      "prompt": "Review this plugin against the marketplace rules before I add it to the catalog.",
+      "expect": "validating-plugins",
+      "note": "pre-catalog review"
+    },
+    {
+      "prompt": "What's a good recipe for dinner tonight?",
+      "expect": null,
+      "note": "clear negative"
+    },
+    {
+      "prompt": "Add validation to the email field in my signup form so bad addresses are rejected.",
+      "expect": null,
+      "note": "confusability negative — 'validation' but about form input, not plugins"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "plugin-validator",
+  "version": "0.0.1",
+  "description": "ObjectCore meta-plugin: governs plugin and marketplace correctness — the hard-rule checklist plus the validate + eval gate.",
+  "author": { "name": "twofoldtech-dakota" },
+  "license": "MIT",
+  "keywords": ["objectcore", "meta", "validation", "governance"]
+}

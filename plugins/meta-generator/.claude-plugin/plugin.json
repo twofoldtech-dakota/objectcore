@@ -1,0 +1,8 @@
+{
+  "name": "meta-generator",
+  "version": "0.0.1",
+  "description": "ObjectCore meta-plugin: generates new meta-plugins (generators and governance plugins) from an archetype — the factory replicating itself.",
+  "author": { "name": "twofoldtech-dakota" },
+  "license": "MIT",
+  "keywords": ["objectcore", "meta", "generator", "self-replicating", "archetype"]
+}

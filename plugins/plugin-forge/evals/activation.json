@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "prompt": "How should I word a skill's description so it reliably fires on the right tasks but stays quiet otherwise?",
+      "expect": "writing-great-skills",
+      "note": "the principle of trigger-surface wording"
+    },
+    {
+      "prompt": "Review my existing SKILL.md against skill best practices — its metadata, body, and reference layering.",
+      "expect": "writing-great-skills",
+      "note": "reviewing a skill against the spec"
+    },
+    {
+      "prompt": "My plugin idea is still fuzzy — help me pin down scope, non-goals, and how we'll verify it before we build anything.",
+      "expect": "specifying",
+      "note": "the grilling gate, before planning"
+    },
+    {
+      "prompt": "I have a pinned spec. Choose the components and draft the activation eval cases for this new plugin.",
+      "expect": "planning",
+      "note": "turning a decided spec into a PluginSpec"
+    },
+    {
+      "prompt": "What's the capital of France?",
+      "expect": null,
+      "note": "clear negative — no skill should fire"
+    },
+    {
+      "prompt": "Help me write a great cover letter for a job application.",
+      "expect": null,
+      "note": "confusability negative — shares 'write'/'great', wrong intent"
+    }
+  ]
+}

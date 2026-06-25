@@ -1,0 +1,8 @@
+{
+  "name": "plugin-forge",
+  "version": "0.0.1",
+  "description": "ObjectCore meta-plugin: scaffolds new plugins and their catalog entries via a spec-driven pipeline. (Stage 1 skeleton.)",
+  "author": { "name": "twofoldtech-dakota" },
+  "license": "MIT",
+  "keywords": ["objectcore", "meta", "generator", "scaffold", "spec-driven"]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@objectcore/registry-server",
+  "version": "0.0.1",
+  "type": "module",
+  "dependencies": {
+    "@objectcore/registry-core": "workspace:*",
+    "hono": "^4.6.0"
+  }
+}

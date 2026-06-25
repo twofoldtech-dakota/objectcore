@@ -1,0 +1,8 @@
+{
+  "name": "hello-objectcore",
+  "version": "0.1.0",
+  "description": "Minimal demo plugin proving the ObjectCore derive + validate pipeline end to end.",
+  "author": { "name": "twofoldtech-dakota" },
+  "license": "MIT",
+  "keywords": ["objectcore", "example"]
+}

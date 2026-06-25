@@ -1,0 +1,8 @@
+{
+  "name": "marketplace-builder",
+  "version": "0.0.1",
+  "description": "ObjectCore meta-plugin: governs the catalog build — derive marketplace.json from the plugin graph through the single deriveCatalog seam, validate, and keep it in sync.",
+  "author": { "name": "twofoldtech-dakota" },
+  "license": "MIT",
+  "keywords": ["objectcore", "meta", "marketplace", "catalog", "build"]
+}

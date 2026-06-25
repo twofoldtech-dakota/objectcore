@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "I want to add another governance plugin to the factory — which archetype should it follow and what shape should it take?",
+      "expect": "meta-plugin-archetypes",
+      "note": "designing a new meta-plugin / choosing an archetype"
+    },
+    {
+      "prompt": "Should this be a meta-plugin or an ordinary leaf plugin? It governs how other plugins are named.",
+      "expect": "meta-plugin-archetypes",
+      "note": "deciding whether something is a meta-plugin"
+    },
+    {
+      "prompt": "What's the weather forecast for this weekend?",
+      "expect": null,
+      "note": "clear negative"
+    },
+    {
+      "prompt": "Generate TypeScript types from this JSON schema file.",
+      "expect": null,
+      "note": "confusability negative — 'generate', but ordinary codegen, not a meta-plugin"
+    }
+  ]
+}

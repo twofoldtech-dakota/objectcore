@@ -1,0 +1,26 @@
+{
+  "name": "objectcore",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build:marketplace": "bun run scripts/build-marketplace.ts",
+    "validate": "bun run scripts/build-marketplace.ts",
+    "eval": "bun run scripts/eval.ts",
+    "forge:scaffold": "bun run scripts/forge-scaffold.ts",
+    "forge:meta": "bun run scripts/forge-meta.ts",
+    "check:catalog": "bun run scripts/check-catalog.ts",
+    "check": "bunx tsc && bun run check:catalog && bun test && bun run eval",
+    "registry:dev": "bun run packages/registry-server/src/dev.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@objectcore/registry-core": "workspace:*",
+    "@objectcore/eval": "workspace:*",
+    "@objectcore/forge": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.6.0"
+  }
+}

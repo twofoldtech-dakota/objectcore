@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "I added a new plugin — how is marketplace.json regenerated from the plugin graph, and why shouldn't I edit it by hand?",
+      "expect": "building-the-catalog",
+      "note": "how the catalog is derived + the never-hand-edit rule"
+    },
+    {
+      "prompt": "The catalog is reported out of sync and I want to understand the deriveCatalog source/sink seam before changing it.",
+      "expect": "building-the-catalog",
+      "note": "reasoning about the seam"
+    },
+    {
+      "prompt": "What's the best pizza topping combination?",
+      "expect": null,
+      "note": "clear negative"
+    },
+    {
+      "prompt": "Set up a webpack build for my marketplace web app's frontend bundle.",
+      "expect": null,
+      "note": "confusability negative — 'build' + 'marketplace', but a JS bundler, not the catalog"
+    }
+  ]
+}
