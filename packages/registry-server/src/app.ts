@@ -11,6 +11,12 @@ export interface ServerOpts {
   /** Optional readiness probe: returns true when the backing dependency (e.g. the
    *  registry DB) is reachable. Wired in prod; omitted in dev/tests defaults ready. */
   ready?: () => Promise<boolean>;
+  /** Optional: resolve a per-channel (source, derive) pair. When provided,
+   *  GET /v1/:channel/marketplace.json serves that channel. Returning undefined
+   *  for an unknown channel yields a 404. `/v1/marketplace.json` is unaffected. */
+  channels?: (channel: string) =>
+    | { source: CatalogSource; derive: DeriveOpts | (() => DeriveOpts | Promise<DeriveOpts>) }
+    | undefined;
 }
 
 // The HTTP adapter. Dev-loop server now; the SAME app serves prod at Stage 3 (swap
@@ -38,5 +44,17 @@ export function createApp(opts: ServerOpts): Hono {
       return c.json({ ready: false, error: String(err) }, 503);
     }
   });
+
+  if (opts.channels) {
+    app.get("/v1/:channel/marketplace.json", async (c) => {
+      const channel = c.req.param("channel");
+      const resolved = opts.channels!(channel);
+      if (!resolved) return c.json({ error: `unknown channel: ${channel}` }, 404);
+      const plugins = await resolved.source.listPlugins();
+      const derive =
+        typeof resolved.derive === "function" ? await resolved.derive() : resolved.derive;
+      return c.json(deriveCatalog(plugins, derive));
+    });
+  }
   return app;
 }

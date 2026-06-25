@@ -23,6 +23,10 @@ const fixture: WorkspacePlugin[] = [
 ];
 const base: DeriveOpts = { name: "objectcore", owner: { name: "Dakota" }, pluginRoot: "./plugins" };
 
+const canaryFixture: WorkspacePlugin[] = [
+  { manifest: { name: "gamma-plugin", version: "2.0.0-rc.1", description: "Gamma RC" }, dir: "", relDir: "gamma-plugin" },
+];
+
 test("GET /v1/marketplace.json derives a valid catalog from the injected source", async () => {
   const app = createApp({ source: new MockSource(fixture), derive: base });
   const res = await app.request("/v1/marketplace.json");
@@ -83,4 +87,37 @@ test("GET /readyz defaults to ready when no checker is wired", async () => {
   const res = await app.request("/readyz");
   expect(res.status).toBe(200);
   expect(await res.json()).toEqual({ ready: true });
+});
+
+test("GET /v1/:channel/marketplace.json serves the resolved channel", async () => {
+  const app = createApp({
+    source: new MockSource(fixture),
+    derive: base,
+    channels: (ch) =>
+      ch === "canary" ? { source: new MockSource(canaryFixture), derive: base } : undefined,
+  });
+  const res = await app.request("/v1/canary/marketplace.json");
+  expect(res.status).toBe(200);
+  const catalog = (await res.json()) as MarketplaceJson;
+  expect(catalog.plugins.map((p) => p.name)).toEqual(["gamma-plugin"]);
+});
+
+test("the bare /v1/marketplace.json seam still serves stable when channels is set", async () => {
+  const app = createApp({
+    source: new MockSource(fixture),
+    derive: base,
+    channels: () => ({ source: new MockSource(canaryFixture), derive: base }),
+  });
+  const catalog = (await (await app.request("/v1/marketplace.json")).json()) as MarketplaceJson;
+  expect(catalog.plugins.map((p) => p.name)).toEqual(["alpha-plugin", "beta-plugin"]);
+});
+
+test("an unknown channel 404s", async () => {
+  const app = createApp({
+    source: new MockSource(fixture),
+    derive: base,
+    channels: () => undefined,
+  });
+  const res = await app.request("/v1/nope/marketplace.json");
+  expect(res.status).toBe(404);
 });
