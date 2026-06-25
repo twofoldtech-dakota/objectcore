@@ -92,11 +92,15 @@ export class AnthropicJudge implements Judge {
       .join("\n");
     const user = `Available skills:\n${surfaceList || "(none)"}\n\nUser prompt:\n${prompt}`;
 
+    // temperature 0: routing is a CLASSIFICATION, so it must be deterministic and
+    // reproducible — the same prompt has to route the same way locally and in CI.
+    // At the model default a borderline case flips between runs and flakes the gate.
     // No thinking/effort params: those error on Haiku 4.5 and aren't needed for a
     // one-shot classification. Structured output guarantees a parseable verdict.
     const res = await this.client.messages.create({
       model: this.model,
       max_tokens: 512,
+      temperature: 0,
       system: SYSTEM,
       output_config: { format: { type: "json_schema", schema: ROUTE_SCHEMA } },
       messages: [{ role: "user", content: user }],
