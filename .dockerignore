@@ -1,0 +1,10 @@
+# Keep the Fly build context small; bun install regenerates node_modules in the image.
+node_modules
+**/node_modules
+.git
+dist
+*.log
+.scratch*
+.scratch-registry.db*
+.changeset
+OC
