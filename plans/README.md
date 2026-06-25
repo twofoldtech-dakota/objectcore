@@ -18,7 +18,7 @@ honor its STOP conditions, and update your row below when done.
 | 003 | (spike) Ship the first real plugin via `/forge` + report forge gaps | P2 | M | — | DONE (spike) — report delivered; `commit-craft` NOT merged (activation eval unrun + stub skill body). Branch `advisor/003-forge-first-plugin`. |
 | 005 | Forge engine guards — pre-write activation↔skill cross-check + stub marker | P2 | S | — | DONE (merged to main `9beeee8`) |
 | 006 | Eval gate — ship-readiness: require a negative case + fail unfilled (`forge:todo`) bodies | P2 | S–M | 005 | DONE (merged to main `f280fb0`) |
-| 007 | Forge prose — trigger-surface recipe, case budget, category vocab, real body | P3 | S | 006 | TODO |
+| 007 | Forge prose — trigger-surface recipe, case budget, category vocab, real body | P3 | S | 006 | DONE (merged to main `5d449d3`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
@@ -63,12 +63,27 @@ runs cleanly (engine / eval / prose):
   budget) + the category vocabulary + the real-body requirement, documenting what
   005/006 enforce. `plugins/plugin-forge/skills/*/SKILL.md`. Depends on 006.
 
-Only **007** (prose) remains of the forge-hardening set.
+All of the forge-hardening set (005, 006, 007) is **DONE and merged.**
 
-Open decision on `commit-craft`: either (a) finish it — write a real skill body
-(guided by the hardened 007 prose) and run `bun run eval` with the key to pass the
-activation gate, then merge; or (b) treat it as a throwaway spike vehicle and drop
-the branch, keeping only the gap report. It must not be merged as-is.
+## `commit-craft` — finished, pending only the activation eval
+
+The 003 spike vehicle is now a real plugin: a genuine `writing-commit-messages`
+skill body (Conventional Commits instructions), re-derived into the catalog (7
+plugins), passing **every offline gate** including 006's readiness checks
+(`covers`, `has-negative-case`, `body-filled`). It sits on branch
+**`advisor/003-commit-craft-final` (`fe68902`)**, NOT merged — per hard rule #5 a
+plugin can't enter the catalog until its activation eval passes, and that eval
+needs `ANTHROPIC_API_KEY` (out of the local/agent reach). To finish:
+
+1. Verify the activation gate with the key — either `git checkout
+   advisor/003-commit-craft-final && ANTHROPIC_API_KEY=… bun run eval` locally, or
+   open a PR from that branch so CI runs `bun run eval` with the repo secret.
+2. If the 4 activation cases route correctly (2 positives, 1 plain negative, 1
+   confusability negative vs `plugin-validator`), **green → merge it** as the
+   factory's first real end-user plugin. If a case misroutes, tighten only the
+   skill's frontmatter `description` and re-run (never weaken the cases).
+
+`commit-craft` was finished (option a) — see the dedicated section below.
 
 ## Dependency notes
 
