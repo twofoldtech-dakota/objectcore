@@ -102,6 +102,23 @@
       ]
     },
     {
+      "name": "pr-craft",
+      "source": "pr-craft",
+      "description": "Generate a clear pull-request title and description from the commits on a branch, ready to open or update the PR.",
+      "version": "0.1.0",
+      "author": {
+        "name": "twofoldtech-dakota"
+      },
+      "license": "MIT",
+      "keywords": [
+        "git",
+        "pull-requests",
+        "code-review",
+        "workflow"
+      ],
+      "category": "workflow"
+    },
+    {
       "name": "release-manager",
       "source": "release-manager",
       "description": "ObjectCore meta-plugin: governs plugin releases — the Changesets-driven version, {plugin}--v{semver} tagging, SHA-pinned catalog publishing, and build-provenance/attestation flow.",

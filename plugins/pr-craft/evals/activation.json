@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "I'm about to open a PR for my feature branch — write a title and description for it.",
+      "expect": "writing-pull-requests",
+      "note": "positive — authoring a PR title+description from a branch"
+    },
+    {
+      "prompt": "Summarize the commits on this branch into a pull request description for reviewers.",
+      "expect": "writing-pull-requests",
+      "note": "positive — summarizing a branch for review"
+    },
+    {
+      "prompt": "What's the best topping for a homemade pizza?",
+      "expect": null,
+      "note": "clear negative"
+    },
+    {
+      "prompt": "Merge my pull request #42 into main and delete the branch.",
+      "expect": null,
+      "note": "confusability negative — shares pull-request vocabulary but the intent is merging/closing a PR, not authoring its title or description; must NOT fire writing-pull-requests"
+    }
+  ]
+}

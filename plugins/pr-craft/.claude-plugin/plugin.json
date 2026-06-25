@@ -1,0 +1,16 @@
+{
+  "name": "pr-craft",
+  "version": "0.1.0",
+  "description": "Generate a clear pull-request title and description from the commits on a branch, ready to open or update the PR.",
+  "author": {
+    "name": "twofoldtech-dakota"
+  },
+  "license": "MIT",
+  "keywords": [
+    "git",
+    "pull-requests",
+    "code-review",
+    "workflow"
+  ],
+  "category": "workflow"
+}
