@@ -33,12 +33,25 @@ checks: (1) every skill-bearing plugin must ship ≥1 negative (`expect: null`)
 case, and (2) no shipped skill body may still contain the `forge:todo` stub
 marker.
 
+**REVISED after first execution (design correction).** The first attempt added
+these checks directly into `runCoverageEvals`, which is **also called on freshly
+scaffolded output** — by `scripts/_finalize.ts` (`syncAndGate`, the
+`forge:scaffold`/`forge:meta` step) and by `packages/forge/test/scaffold.test.ts`'s
+`metaPluginSpec scaffolds clean` test. A fresh skeleton is, by design (plan 005), a
+`forge:todo` stub with only an auto-synthesized positive case — so putting the
+negative/filled-body checks in `runCoverageEvals` made every scaffold fail. The
+fix: **keep `runCoverageEvals` structural (positive-case only) and put the two new
+checks in a separate `runReadinessEvals`** that only the full ship gate
+(`scripts/eval.ts`) calls — never the scaffold step. Structural coverage = "is this
+a valid skeleton"; readiness = "is this ready to ship".
+
 **Safe for the current catalog** (verified): all five skill-bearing plugins
 (`marketplace-builder`, `meta-generator`, `plugin-forge`, `plugin-validator`,
 `release-manager`) already ship 2 negative cases each, and none of their
 hand-written skill bodies contains `forge:todo`. `hello-objectcore` has no skill,
-so it is skipped. So both new checks pass on the existing catalog —
-`bun run check:catalog` and `bun run eval` stay green.
+so it is skipped. So `runReadinessEvals` passes on the existing catalog, and
+because `runCoverageEvals` is unchanged the scaffold step and the forge test stay
+green too.
 
 ## Current state
 
@@ -122,17 +135,22 @@ dependency-light (it already imports only `node:fs` + registry-core types).
 
 ## Scope
 
-**In scope** (only these):
-- `packages/eval/src/coverage.ts`
-- `packages/eval/src/trigger-surface.ts` (add one exported helper)
-- `packages/eval/test/eval.test.ts`
+**In scope** (only these — REVISED to add `scripts/eval.ts`):
+- `packages/eval/src/coverage.ts` (keep `runCoverageEvals` unchanged; add `runReadinessEvals`)
+- `packages/eval/src/trigger-surface.ts` (add the `readSkillBodies` helper)
+- `packages/eval/test/eval.test.ts` (new tests target `runReadinessEvals`)
+- `scripts/eval.ts` (wire `runReadinessEvals` into the ship gate)
 
 **Out of scope** (do NOT touch):
+- `scripts/_finalize.ts` — the scaffold step (`syncAndGate`) must stay lenient
+  (structural coverage only). Adding readiness here is the bug this revision fixes.
 - `packages/forge/**` — the marker is produced there (plan 005, merged); this plan
   only *detects* it. Do not import from `@objectcore/forge` (avoids a forge↔eval
-  cycle) — scan for the literal substring `forge:todo`.
-- Any `plugins/**` — the existing plugins already satisfy both gates; if one does
-  not, STOP and report (do not edit a plugin to make the gate pass).
+  cycle) — scan for the literal substring `forge:todo`. The `metaPluginSpec`
+  scaffold test must stay green (it calls `runCoverageEvals`, which you leave
+  unchanged).
+- Any `plugins/**` — the existing plugins already satisfy the readiness gate; if
+  one does not, STOP and report (do not edit a plugin to make the gate pass).
 - `packages/eval/src/activation.ts`, `output.ts`, `runner.ts`.
 
 ## Git workflow

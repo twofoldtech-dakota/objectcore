@@ -17,7 +17,7 @@ honor its STOP conditions, and update your row below when done.
 | 002 | Add a read-only `/v1/search` route over the derived catalog | P2 | M | — | DONE (merged to main `0453438`) |
 | 003 | (spike) Ship the first real plugin via `/forge` + report forge gaps | P2 | M | — | DONE (spike) — report delivered; `commit-craft` NOT merged (activation eval unrun + stub skill body). Branch `advisor/003-forge-first-plugin`. |
 | 005 | Forge engine guards — pre-write activation↔skill cross-check + stub marker | P2 | S | — | DONE (merged to main `9beeee8`) |
-| 006 | Eval gate — require a negative case + fail unfilled (`forge:todo`) bodies | P2 | S–M | 005 | TODO |
+| 006 | Eval gate — ship-readiness: require a negative case + fail unfilled (`forge:todo`) bodies | P2 | S–M | 005 | DONE (merged to main `f280fb0`) |
 | 007 | Forge prose — trigger-surface recipe, case budget, category vocab, real body | P3 | S | 006 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
@@ -52,15 +52,18 @@ runs cleanly (engine / eval / prose):
 - **005 (engine, DONE/merged)** = rec 4 (pre-write activation↔skill cross-check) +
   rec 3-engine (default body now carries a visible `<!-- forge:todo -->` stub
   marker). `packages/forge/src/scaffold.ts`.
-- **006 (eval, TODO)** = rec 1 (require ≥1 negative case per skill-bearing plugin) +
-  rec 3-eval (fail any shipped skill body still containing `forge:todo`).
-  `packages/eval/{coverage,trigger-surface}.ts`. Depends on 005's marker.
-- **007 (prose, TODO)** = rec 2 (trigger-surface recipe + activation-case budget) +
-  the category vocabulary + the real-body requirement, documenting what 005/006
-  enforce. `plugins/plugin-forge/skills/*/SKILL.md`. Depends on 006.
+- **006 (eval, DONE/merged)** = rec 1 (require ≥1 negative case per skill-bearing
+  plugin) + rec 3-eval (fail any shipped skill body still containing `forge:todo`).
+  Implemented as a **ship-readiness** suite (`runReadinessEvals`) wired only into
+  the full gate (`scripts/eval.ts`), NOT the scaffold step — a fresh skeleton is a
+  legal stub, but a shippable plugin must be filled in. `runCoverageEvals` stays
+  structural. (First attempt put the checks in `runCoverageEvals`, which broke
+  `forge:scaffold`/`forge:meta`; the split fixed it.)
+- **007 (prose, TODO — next)** = rec 2 (trigger-surface recipe + activation-case
+  budget) + the category vocabulary + the real-body requirement, documenting what
+  005/006 enforce. `plugins/plugin-forge/skills/*/SKILL.md`. Depends on 006.
 
-Execution order for the remaining two: **006 then 007** (006 enforces; 007's prose
-describes the enforcement).
+Only **007** (prose) remains of the forge-hardening set.
 
 Open decision on `commit-craft`: either (a) finish it — write a real skill body
 (guided by the hardened 007 prose) and run `bun run eval` with the key to pass the
