@@ -16,9 +16,9 @@
       "note": "clear negative"
     },
     {
-      "prompt": "Review my plugin against the marketplace rules before I add it to the catalog.",
+      "prompt": "Undo my last git commit and unstage the changes.",
       "expect": null,
-      "note": "confusability negative — about plugin validation, must NOT fire the commit skill"
+      "note": "confusability negative — shares commit/git vocabulary but the intent is undoing a commit, not authoring or improving a message; must NOT fire writing-commit-messages"
     }
   ]
 }
