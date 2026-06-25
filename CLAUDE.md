@@ -27,6 +27,7 @@ bun run release:version          # Stage 2: consume changesets -> bump plugin.js
 bun run release:publish          # Stage 2: tag {plugin}--v{semver}, SHA-pin the catalog, (CI) attest
 bun run check:catalog            # read-only: validate every plugin + assert marketplace.json is in sync (no writes)
 bun run check                    # the one-command gate = tsc + check:catalog + test + eval (what CI runs)
+bun run clean:git                # git hygiene: prune stale worktrees + delete merged branches (--dry-run | --gone | --remote)
 bun run registry:dev            # serve http://localhost:8787/v1/marketplace.json (Git source, dev loop)
 bun run registry:prod           # Stage 3: serve the SHA-pinned catalog from the registry DB (RegistryDbSource); OBJECTCORE_SOURCE=db|file
 bun run db:migrate              # Stage 3: apply the registry DB schema (needs DATABASE_URL; no-op otherwise)
