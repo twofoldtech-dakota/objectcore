@@ -104,6 +104,48 @@ test("metaPluginSpec tags meta keywords, guarantees coverage, and scaffolds clea
   }
 });
 
+test("scaffoldPlugin rejects an activation case that names an undeclared skill", async () => {
+  const dir = await tmp();
+  try {
+    await expect(
+      scaffoldPlugin(
+        { name: "typo-plugin", description: "x", skills: [{ name: "do-thing", description: "d" }], activation: [{ prompt: "p", expect: "do-thingg" }] },
+        dir,
+      ),
+    ).rejects.toThrow(/no such skill is declared/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("scaffoldPlugin rejects a skill with only a negative case (no positive)", async () => {
+  const dir = await tmp();
+  try {
+    await expect(
+      scaffoldPlugin(
+        { name: "neg-only", description: "x", skills: [{ name: "do-thing", description: "d" }], activation: [{ prompt: "p", expect: null }] },
+        dir,
+      ),
+    ).rejects.toThrow(/no positive activation case/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a scaffolded skill with no body gets the visible forge:todo stub marker", async () => {
+  const dir = await tmp();
+  try {
+    const { dir: pluginDir } = await scaffoldPlugin(
+      { name: "stub-body", description: "x", skills: [{ name: "do-thing", description: "Use when the user wants the thing." }], activation: [{ prompt: "do the thing", expect: "do-thing" }] },
+      dir,
+    );
+    const body = await readFile(join(pluginDir, "skills", "do-thing", "SKILL.md"), "utf8");
+    expect(body).toContain("forge:todo");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("scaffoldPlugin rejects non-kebab names and refuses to overwrite", async () => {
   const dir = await tmp();
   try {
