@@ -9,6 +9,9 @@
     "eval": "bun run scripts/eval.ts",
     "forge:scaffold": "bun run scripts/forge-scaffold.ts",
     "forge:meta": "bun run scripts/forge-meta.ts",
+    "release:status": "bun run scripts/release-status.ts",
+    "release:version": "bun run scripts/release-version.ts",
+    "release:publish": "bun run scripts/release-publish.ts",
     "check:catalog": "bun run scripts/check-catalog.ts",
     "check": "bunx tsc && bun run check:catalog && bun test && bun run eval",
     "registry:dev": "bun run packages/registry-server/src/dev.ts",
@@ -17,7 +20,8 @@
   "dependencies": {
     "@objectcore/registry-core": "workspace:*",
     "@objectcore/eval": "workspace:*",
-    "@objectcore/forge": "workspace:*"
+    "@objectcore/forge": "workspace:*",
+    "@objectcore/release": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",

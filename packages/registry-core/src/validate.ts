@@ -1,10 +1,12 @@
 // The deterministic "tests" floor (code checks these). The non-deterministic eval
 // layer (does the skill activate? did the generator take the right steps?) lands in
-// Stage 1. ajv strict-schema validation slots in alongside `validateManifests` at Stage 2.
+// Stage 1. Stage 2 added strict manifest schema validation (`validateSchema`, hand-
+// rolled to keep the pure core dependency-free) — it runs inside `validateAll`.
 
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import type { MarketplaceJson, WorkspacePlugin } from "./types";
+import { validateSchema } from "./schema";
 
 export interface ValidationIssue {
   level: "error" | "warning";
@@ -32,7 +34,8 @@ const RESERVED_MARKETPLACE_NAMES = new Set([
   "financial-services-plugins",
 ]);
 
-/** Manifest-shape checks. (Where ajv strict schema slots in at Stage 2.) */
+/** Targeted manifest checks for the three hard-load rules. `validateSchema`
+ *  (in schema.ts) covers the full strict shape — unknown fields and every type. */
 export function validateManifests(plugins: WorkspacePlugin[]): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const p of plugins) {
@@ -120,6 +123,7 @@ export async function validateAll(
   return [
     ...validateMarketplaceName(catalog.name),
     ...validateManifests(plugins),
+    ...validateSchema(plugins),
     ...validateSync(plugins, catalog),
     ...(await validatePlacement(plugins)),
   ];

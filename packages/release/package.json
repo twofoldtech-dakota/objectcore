@@ -1,0 +1,11 @@
+{
+  "name": "@objectcore/release",
+  "version": "0.0.1",
+  "type": "module",
+  "module": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@objectcore/registry-core": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" }
+}
