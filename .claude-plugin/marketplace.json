@@ -84,6 +84,25 @@
         "validation",
         "governance"
       ]
+    },
+    {
+      "name": "release-manager",
+      "source": "release-manager",
+      "description": "ObjectCore meta-plugin: governs plugin releases — the Changesets-driven version, {plugin}--v{semver} tagging, SHA-pinned catalog publishing, and build-provenance/attestation flow.",
+      "version": "0.0.1",
+      "author": {
+        "name": "twofoldtech-dakota"
+      },
+      "license": "MIT",
+      "keywords": [
+        "objectcore",
+        "meta",
+        "governance",
+        "release",
+        "changesets",
+        "versioning",
+        "provenance"
+      ]
     }
   ],
   "$schema": "https://objectcore.ai/schemas/marketplace.json",

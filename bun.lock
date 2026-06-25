@@ -8,6 +8,7 @@
         "@objectcore/eval": "workspace:*",
         "@objectcore/forge": "workspace:*",
         "@objectcore/registry-core": "workspace:*",
+        "@objectcore/release": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -54,6 +55,17 @@
         "hono": "^4.6.0",
       },
     },
+    "packages/release": {
+      "name": "@objectcore/release",
+      "version": "0.0.1",
+      "dependencies": {
+        "@objectcore/registry-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5.6.0",
+      },
+    },
   },
   "packages": {
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.106.0", "", { "dependencies": { "json-schema-to-ts": "^3.1.1", "standardwebhooks": "^1.0.0" }, "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["zod"], "bin": { "anthropic-ai-sdk": "bin/cli" } }, "sha512-ufwVvYNDBj2dzOGupBCTaNzBLxqcTnGOzI4z8Wouxlt+mT3J3HuOmatgCy1VmwCHOUueqZ41ERhm0O99OUcbWA=="],
@@ -67,6 +79,8 @@
     "@objectcore/registry-core": ["@objectcore/registry-core@workspace:packages/registry-core"],
 
     "@objectcore/registry-server": ["@objectcore/registry-server@workspace:packages/registry-server"],
+
+    "@objectcore/release": ["@objectcore/release@workspace:packages/release"],
 
     "@stablelib/base64": ["@stablelib/base64@1.0.1", "", {}, "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="],
 

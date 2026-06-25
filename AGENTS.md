@@ -25,7 +25,9 @@ Your output is not plugins. It is the system that produces and governs plugins.
    `evals/activation.json`, needs an API key; the cheap-model judge routes trigger surfaces).
 4. `bun test` — contract tests for the seam.
 5. `bun run registry:dev` — serve the catalog locally (the HTTP adapter as dev loop).
-6. Changesets -> release CI writes versions, tags `{plugin}--v{semver}`, SHA-pins, attests.
+6. Changesets -> release CI. Add `.changeset/<name>.md`; `bun run release:version` bumps
+   `plugin.json` + re-derives the catalog (CI opens the Version PR); `bun run release:publish`
+   tags `{plugin}--v{semver}`, SHA-pins the catalog (`deriveCatalog`'s `shaPin`), and attests.
 
 `bun run check` runs steps 2–4 together (tsc + catalog validation + tests + evals) — the
 single gate `.github/workflows/ci.yml` enforces on every PR. Set the `ANTHROPIC_API_KEY`

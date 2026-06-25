@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "I changed a couple of plugins — how do I cut a release: bump their versions, tag them, and publish a pinned catalog?",
+      "expect": "releasing-plugins",
+      "note": "core positive — the version -> tag -> pin flow"
+    },
+    {
+      "prompt": "How do I record a changeset so this plugin's version bumps on the next release?",
+      "expect": "releasing-plugins",
+      "note": "positive — authoring a changeset"
+    },
+    {
+      "prompt": "What's a good recipe for sourdough bread?",
+      "expect": null,
+      "note": "clear negative"
+    },
+    {
+      "prompt": "How do I tag a Docker image and push it to my container registry?",
+      "expect": null,
+      "note": "confusability negative — tag/registry/publish words, but containers, not plugin releases"
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+name: release
+
+# Stage 2 release pipeline. Mirrors the Changesets flow but versions PLUGINS
+# (plugin.json), not npm packages:
+#   - changesets present  -> run release:version, open/update the "Version PR"
+#   - changesets consumed  -> run release:publish (tag {plugin}--v{semver} + SHA-pin),
+#                             push tags, and attest the pinned catalog (SLSA provenance)
+on:
+  push:
+    branches: [main]
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write # create tags / the Version PR branch
+  pull-requests: write # open the Version PR
+  id-token: write # OIDC for attestation
+  attestations: write # actions/attest-build-provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags so release:publish can see existing tags
+
+      # release:publish creates annotated tags (`git tag -a`), which need an identity.
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      # Gate before any release action — never release an un-validated catalog.
+      - name: Validate catalog
+        run: bun run check:catalog
+
+      - name: Contract tests
+        run: bun test
+
+      # Are there pending changesets (excluding README)?
+      - name: Detect changesets
+        id: detect
+        run: |
+          shopt -s nullglob
+          count=0
+          for f in .changeset/*.md; do
+            [ "$(basename "$f" | tr '[:upper:]' '[:lower:]')" = "readme.md" ] && continue
+            count=$((count+1))
+          done
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Found $count changeset(s)."
+
+      # --- Changesets present: produce the Version PR ---
+      - name: Version plugins
+        if: steps.detect.outputs.count != '0'
+        run: bun run release:version
+
+      - name: Open/update Version PR
+        if: steps.detect.outputs.count != '0'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: changeset-release/main
+          title: "Release: version plugins"
+          commit-message: "chore: version plugins (consume changesets)"
+          body: |
+            Automated by the ObjectCore release workflow.
+
+            Merging this PR consumes the pending changesets: it bumps each plugin's
+            `plugin.json` version, keeps `evals/output.json` in lockstep, updates the
+            per-plugin `CHANGELOG.md`, and re-derives `.claude-plugin/marketplace.json`
+            through the single `deriveCatalog` seam.
+
+            On merge (no changesets left) this workflow tags `{plugin}--v{semver}`,
+            SHA-pins the catalog to the release commit (`git-subdir` sources), and
+            attests the pinned catalog with build provenance.
+
+      # --- No changesets: tag + SHA-pin + attest ---
+      - name: Publish (tag + SHA-pin)
+        if: steps.detect.outputs.count == '0'
+        id: publish
+        run: bun run release:publish
+        env:
+          # We attest the artifact in the next step; assert intent so the provenance
+          # gate (MCP-bundling plugins must be attested) lets the publish proceed.
+          OBJECTCORE_ATTESTED: "1"
+
+      - name: Push new tags
+        if: steps.detect.outputs.count == '0' && steps.publish.outputs.tag_count != '0'
+        run: git push origin --tags
+
+      - name: Attest pinned catalog (build provenance)
+        if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != ''
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/marketplace.pinned.json
+
+      - name: Upload pinned catalog
+        if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-pinned
+          path: dist/marketplace.pinned.json

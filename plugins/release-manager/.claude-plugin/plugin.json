@@ -1,0 +1,18 @@
+{
+  "name": "release-manager",
+  "version": "0.0.1",
+  "description": "ObjectCore meta-plugin: governs plugin releases — the Changesets-driven version, {plugin}--v{semver} tagging, SHA-pinned catalog publishing, and build-provenance/attestation flow.",
+  "author": {
+    "name": "twofoldtech-dakota"
+  },
+  "license": "MIT",
+  "keywords": [
+    "objectcore",
+    "meta",
+    "governance",
+    "release",
+    "changesets",
+    "versioning",
+    "provenance"
+  ]
+}

@@ -5,8 +5,10 @@
 import type {
   MarketplaceJson,
   MarketplaceEntry,
+  PluginSource,
   WorkspacePlugin,
 } from "./types";
+import { releaseTag } from "./tags";
 
 export interface DeriveOpts {
   name: string;
@@ -14,8 +16,16 @@ export interface DeriveOpts {
   /** e.g. "./plugins" — when set, entry sources are bare names ("formatter"). */
   pluginRoot?: string;
   schema?: string;
-  /** Stage 2: plugin name -> commit sha, to SHA-pin catalog entries. */
+  /**
+   * Stage 2 (publish): plugin name -> commit sha. A pinned entry's `source`
+   * becomes an immutable `git-subdir` pointer (sha + `{plugin}--v{semver}` ref)
+   * instead of the bare relative path. Requires {@link DeriveOpts.repoUrl}.
+   * Omit it and derivation is byte-identical to the dev catalog — which is why
+   * the committed marketplace.json (derived WITHOUT pins) stays stable.
+   */
   shaPin?: Record<string, string>;
+  /** Stage 2 (publish): repo URL backing git-subdir pins. Required when shaPin pins an entry. */
+  repoUrl?: string;
 }
 
 const copyIf = <K extends keyof MarketplaceEntry>(
@@ -33,6 +43,8 @@ export function deriveCatalog(
   opts: DeriveOpts,
 ): MarketplaceJson {
   const usePluginRoot = Boolean(opts.pluginRoot);
+  // pluginRoot "./plugins" -> repo-relative base "plugins" for git-subdir paths.
+  const subdirBase = (opts.pluginRoot ?? "./plugins").replace(/^\.\//, "").replace(/\/+$/, "");
 
   const entries: MarketplaceEntry[] = plugins
     .slice()
@@ -42,7 +54,8 @@ export function deriveCatalog(
       const entry: MarketplaceEntry = {
         name: m.name,
         // Git-native source. With pluginRoot set, the source is the bare relDir.
-        source: usePluginRoot ? p.relDir : `./${p.relDir}`,
+        // A SHA-pin (publish only) upgrades it to an immutable git-subdir pointer.
+        source: pinnedSource(m.name, p.relDir, usePluginRoot, subdirBase, m.version, opts),
       };
       copyIf(m, entry, [
         "displayName",
@@ -66,4 +79,31 @@ export function deriveCatalog(
   if (opts.schema) out.$schema = opts.schema;
   if (opts.pluginRoot) out.metadata = { pluginRoot: opts.pluginRoot };
   return out;
+}
+
+/** Resolve an entry's `source`: bare relative path (dev), or an immutable
+ *  git-subdir pin (publish, when `shaPin[name]` is set). Pure. */
+function pinnedSource(
+  name: string,
+  relDir: string,
+  usePluginRoot: boolean,
+  subdirBase: string,
+  version: string | undefined,
+  opts: DeriveOpts,
+): PluginSource {
+  const sha = opts.shaPin?.[name];
+  if (!sha) return usePluginRoot ? relDir : `./${relDir}`;
+  if (!opts.repoUrl) {
+    throw new Error(
+      `shaPin set for "${name}" but opts.repoUrl is missing — a git-subdir pin needs the repo URL`,
+    );
+  }
+  const source: Extract<PluginSource, { source: "git-subdir" }> = {
+    source: "git-subdir",
+    url: opts.repoUrl,
+    path: `${subdirBase}/${relDir}`,
+    sha,
+  };
+  if (version) source.ref = releaseTag(name, version);
+  return source;
 }
