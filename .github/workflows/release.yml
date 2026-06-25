@@ -21,7 +21,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history + tags so release:publish can see existing tags
 
@@ -98,13 +98,13 @@ jobs:
 
       - name: Attest pinned catalog (build provenance)
         if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != ''
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/marketplace.pinned.json
 
       - name: Upload pinned catalog
         if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: marketplace-pinned
           path: dist/marketplace.pinned.json
