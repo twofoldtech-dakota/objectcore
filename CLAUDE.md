@@ -58,10 +58,11 @@ The hard rule "no plugin enters the catalog without passing validation AND its a
 
 ### The eval harness (`packages/eval` — Stage 1, the gate)
 
-`@objectcore/eval` is the non-deterministic counterpart to `validate.ts`. Validation proves a plugin *loads*; the eval gate proves it's *good* and that its skills actually *fire* — "a skill that never fires is worse than one that fails to parse." Three layers, run by `scripts/eval.ts`:
+`@objectcore/eval` is the non-deterministic counterpart to `validate.ts`. Validation proves a plugin *loads*; the eval gate proves it's *good* and that its skills actually *fire* — "a skill that never fires is worse than one that fails to parse." Four layers, run by `scripts/eval.ts`:
 
 - **Output evals** (`output.ts`, deterministic, always run): content-quality checks on the derived catalog (description/version/keywords) plus per-plugin `evals/output.json` `expectEntry` assertions (the plugin's intended catalog entry must match what `deriveCatalog` produced).
 - **Coverage evals** (`coverage.ts`, deterministic, always run): every skill must have a *positive* activation case targeting it — otherwise it would enter the catalog ungated. `forge` enforces this at generation time; this enforces it for hand-written plugins too. This closes the gap where the activation layer only runs the cases that happen to exist.
+- **Readiness evals** (`runReadinessEvals` in `coverage.ts`, deterministic) — the *ship-readiness* half, stricter than structural coverage and run ONLY in the full gate (`scripts/eval.ts`), never the scaffold step (`_finalize.ts`): a skill-bearing plugin must ship a *negative* (`expect:null`) case (the "stays quiet on near-misses" half), and no skill body may still carry the `<!-- forge:todo -->` stub marker (`scaffoldPlugin` emits it for unfilled bodies). A fresh scaffold is a legal stub; a *shippable* plugin must be filled in.
 - **Activation evals** (`activation.ts` + `judge.ts`, needs an API key): the gate. A **`Judge`** (ports+adapters, same shape as registry-core's sources/sinks) routes a prompt against the *whole catalog's* skill **trigger surfaces** and we score against `evals/<plugin>/activation.json` cases (`prompt` → expected skill `name`, or `null` for "nothing fires"). `MockJudge` is deterministic/offline (tests, CI without a key); `AnthropicJudge` is the real router. The judge defaults to **`claude-haiku-4-5`** (override `OBJECTCORE_JUDGE_MODEL`) because activation routing is a *classification* task, which AGENTS.md routes to cheap models — not the frontier-model prose tier. Uses structured outputs (no `thinking`/`effort` params, which error on Haiku).
 
 **Conventions:** per-plugin eval specs live at the plugin root under `evals/` (`activation.json`, `output.json`) — an ObjectCore convention, *not* a Claude Code component, so it doesn't violate the components-at-root rule. When a key is absent, activation evals are reported as **skipped**, never silently passed (no silent caps). Trigger surfaces are read from component frontmatter by `trigger-surface.ts`.
@@ -151,9 +152,14 @@ Stage 3 operates the HTTP backend and flips the catalog source from Git to a DB 
   `DATABASE_URL` + `TURSO_AUTH_TOKEN`; `objectcore.ai` via `flyctl certs add`. `deploy.yml` deploys
   on merge to main, **inert until `FLY_API_TOKEN` is set**. Release CI runs `registry:ingest` so the
   live backend updates with no redeploy (DB-mode CLIs self-gate on `DATABASE_URL`).
-- **Later triggers are additive, behind the seam** (designed, not built): search (`/v1/search`),
-  telemetry (`/v1/events`), channels (`/v1/canary/marketplace.json`), OIDC publish
-  (`POST /v1/plugins`, re-enforcing the provenance gate). `/v1/marketplace.json` stays frozen.
+- **Additive routes behind the seam.** Built now: **search** (`GET /v1/search?q=&keyword=&category=`,
+  a pure filter over the derived catalog via `searchCatalog` in registry-core) and **channels**
+  (`GET /v1/:channel/marketplace.json`, allowlisted via `OBJECTCORE_CHANNELS`, wired in `prod.ts`'s
+  `dbApp`). Still designed-but-unbuilt: telemetry (`/v1/events`), OIDC publish (`POST /v1/plugins`,
+  re-enforcing the provenance gate). `/v1/marketplace.json` stays frozen.
+- **Prod deploy safety.** `prod.ts` runs `store.migrate()` on boot (idempotent) and exposes a
+  DB-touching `/readyz` (Fly's health check points at it, not the shallow `/healthz`), so a deploy
+  against a fresh/unreachable DB fails the check instead of serving 500s.
 
 ### Repo CLI wiring (`scripts/_workspace.ts`, `scripts/_finalize.ts`)
 
@@ -184,4 +190,4 @@ Stage 3 operates the HTTP backend and flips the catalog source from Git to a DB 
 - The `OC/` directory holds a packaged snapshot (zip + readme + marketplace.json), not the working source.
 
 ## Staging
-**Stage 0** (the seam, validation floor, dev server, example plugins), **Stage 1** (the meta-plugins + eval harness gate), and **Stage 2** (Changesets release CI — `release-manager` + `@objectcore/release`: version, tag `{plugin}--v{semver}`, SHA-pin via `deriveCatalog`'s `shaPin` opt, attest; plus strict manifest schema validation) are **built**. **Stage 3** (built) = the HTTP backend operates and the catalog source flips Git → DB: `@objectcore/registry-db` (Turso/libSQL `CatalogStore`), `RegistryDbSource`/`RegistryDbSink`, `prod.ts`, ingestion in release CI, and Fly.io deploy (`Dockerfile`/`fly.toml`/`deploy.yml`). No consumer-facing trigger feature (search/telemetry/channels/OIDC) is built yet — those slot in as **additive routes** behind the frozen `/v1/marketplace.json` seam. The remaining operator work is provisioning: the Fly app + Turso DB, `objectcore.ai` DNS/TLS, and the `FLY_API_TOKEN`/`DATABASE_URL`/`TURSO_AUTH_TOKEN` secrets. When extending, keep new work behind the existing ports rather than adding new paths.
+**Stage 0** (the seam, validation floor, dev server, example plugins), **Stage 1** (the meta-plugins + eval harness gate), and **Stage 2** (Changesets release CI — `release-manager` + `@objectcore/release`: version, tag `{plugin}--v{semver}`, SHA-pin via `deriveCatalog`'s `shaPin` opt, attest; plus strict manifest schema validation) are **built**. **Stage 3** (built) = the HTTP backend operates and the catalog source flips Git → DB: `@objectcore/registry-db` (Turso/libSQL `CatalogStore`), `RegistryDbSource`/`RegistryDbSink`, `prod.ts`, ingestion in release CI, and Fly.io deploy (`Dockerfile`/`fly.toml`/`deploy.yml`). **Search and channels are now built** (additive routes behind the frozen seam — see the registry-backend section + `/readyz` deploy safety); telemetry (`/v1/events`) and OIDC publish (`POST /v1/plugins`) remain designed-but-unbuilt. The forge pipeline was also hardened: pre-write activation↔skill cross-validation + an unfilled-body stub marker (`scaffold.ts`), a ship-readiness eval layer (`runReadinessEvals`), and an updated `plugin-forge` prose set. The `ANTHROPIC_API_KEY`/`FLY_API_TOKEN`/`DATABASE_URL`/`TURSO_AUTH_TOKEN` secrets are now set — so CI enforces the activation gate and `deploy.yml` is armed on push to main; the remaining operator work is provisioning the Fly app + Turso DB and `objectcore.ai` DNS/TLS. When extending, keep new work behind the existing ports rather than adding new paths.

@@ -1,0 +1,35 @@
+{
+  "name": "commit-craft",
+  "description": "Write clear, conventional git commit messages from your staged changes.",
+  "version": "0.1.0",
+  "keywords": ["git", "commits", "workflow"],
+  "category": "workflow",
+  "skills": [
+    {
+      "name": "writing-commit-messages",
+      "description": "Draft a clear, conventional-commits-style git commit message that summarizes the staged diff. Use when the user is about to commit, asks for a commit message, or wants their commit wording improved."
+    }
+  ],
+  "activation": [
+    {
+      "prompt": "I just staged a bug fix and a small refactor — write me a good commit message for it.",
+      "expect": "writing-commit-messages",
+      "note": "positive — drafting a commit message from staged changes"
+    },
+    {
+      "prompt": "Rewrite this commit message to follow conventional commits: 'fixed stuff'.",
+      "expect": "writing-commit-messages",
+      "note": "positive — improving commit wording"
+    },
+    {
+      "prompt": "What's a good recipe for dinner tonight?",
+      "expect": null,
+      "note": "clear negative"
+    },
+    {
+      "prompt": "Review my plugin against the marketplace rules before I add it to the catalog.",
+      "expect": null,
+      "note": "confusability negative — about plugin validation, must NOT fire the commit skill"
+    }
+  ]
+}

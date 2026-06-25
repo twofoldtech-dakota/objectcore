@@ -16,6 +16,7 @@ import {
   runActivationEvals,
   runCoverageEvals,
   runOutputEvals,
+  runReadinessEvals,
   DEFAULT_JUDGE_MODEL,
 } from "@objectcore/eval";
 import { loadWorkspace } from "./_workspace";
@@ -25,6 +26,7 @@ const { plugins, catalog } = await loadWorkspace(root);
 
 const results = await runOutputEvals(plugins, catalog);
 results.push(...(await runCoverageEvals(plugins)));
+results.push(...(await runReadinessEvals(plugins)));
 const skipped: string[] = [];
 
 if (hasApiKey()) {

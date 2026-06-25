@@ -34,12 +34,28 @@ function fileApp(): Hono {
   return app;
 }
 
-function dbApp(): Hono {
+async function dbApp(): Promise<Hono> {
+  const store = LibSqlCatalogStore.fromEnv();
+  await store.migrate(); // idempotent: a fresh Turso DB gets its schema before first serve
+  const allowed = new Set(
+    (process.env.OBJECTCORE_CHANNELS ?? "stable,canary").split(",").map((s) => s.trim()).filter(Boolean),
+  );
   // cache rows ~5s so listPlugins() + pins() in one request hit the DB once.
-  const source = new RegistryDbSource(LibSqlCatalogStore.fromEnv(), channel, 5000);
-  console.log(`ObjectCore registry (prod/db) -> :${port} [channel=${channel}]`);
-  return createApp({ source, derive: async () => ({ ...base, ...(await source.pins()) }) });
+  const sourceFor = (ch: string) => {
+    const src = new RegistryDbSource(store, ch, 5000);
+    return { source: src, derive: async () => ({ ...base, ...(await src.pins()) }) };
+  };
+  const stable = sourceFor(channel);
+  console.log(`ObjectCore registry (prod/db) -> :${port} [channel=${channel}, channels=${[...allowed].join(",")}]`);
+  return createApp({
+    ...stable,
+    ready: async () => {
+      await store.listLatest(channel); // throws if the DB is unreachable / schema missing
+      return true;
+    },
+    channels: (ch) => (allowed.has(ch) ? sourceFor(ch) : undefined),
+  });
 }
 
-const app = mode === "file" ? fileApp() : dbApp();
+const app = mode === "file" ? fileApp() : await dbApp();
 export default { port, fetch: app.fetch };

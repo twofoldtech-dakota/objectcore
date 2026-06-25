@@ -4,4 +4,5 @@ export * from "./tags";
 export * from "./sources";
 export * from "./sinks";
 export * from "./schema";
+export * from "./search";
 export * from "./validate";

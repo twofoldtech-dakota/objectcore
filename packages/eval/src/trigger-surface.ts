@@ -107,3 +107,26 @@ export async function collectSkillSurfaces(
   const all = await Promise.all(plugins.map((p) => extractSurfaces(p)));
   return all.flat().filter((s) => s.kind === "skill");
 }
+
+/** Raw SKILL.md content per skill (entry-based walk), for body-quality checks
+ *  like the unfilled-stub gate. */
+export async function readSkillBodies(
+  plugin: WorkspacePlugin,
+): Promise<{ name: string; raw: string }[]> {
+  const skillsDir = join(plugin.dir, plugin.manifest.skills ?? "skills");
+  if (!(await isDir(skillsDir))) return [];
+  const out: { name: string; raw: string }[] = [];
+  for (const entry of (await readdir(skillsDir)).sort()) {
+    if (entry.startsWith(".")) continue;
+    const skillMd = join(skillsDir, entry, "SKILL.md");
+    let raw: string;
+    try {
+      raw = await readFile(skillMd, "utf8");
+    } catch {
+      continue;
+    }
+    const fm = parseFrontmatter(raw);
+    out.push({ name: fm.name || entry, raw });
+  }
+  return out;
+}

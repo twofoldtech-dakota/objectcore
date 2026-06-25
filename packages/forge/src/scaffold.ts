@@ -34,12 +34,17 @@ function titleCase(name: string): string {
   return name.replace(/(^|-)([a-z0-9])/g, (_, sep, ch) => (sep ? " " : "") + ch.toUpperCase()).trim();
 }
 
+/** Sentinel marking an unfilled scaffolded skill body. Plan 006's eval fails any
+ *  shipped skill whose body still contains it. Kept as a plain string (no cross-package
+ *  import) — eval scans for this literal. */
+export const FORGE_STUB_MARKER = "<!-- forge:todo -->";
+
 function defaultSkillBody(s: ComponentSpec): string {
   return `# ${titleCase(s.name)}
 
-${s.description}
-
-Keep the description in the frontmatter precise: it is the trigger surface that decides whether this skill fires. Most skill failures are description failures, not body failures. Load deeper reference only when the task actually needs it.
+${FORGE_STUB_MARKER} Replace this stub with the real skill instructions — what to do,
+the steps, the output format, and any reference to load. The frontmatter \`description\`
+is the trigger surface (it decides firing); this body is what runs once the skill fires.
 `;
 }
 
@@ -85,6 +90,26 @@ export async function scaffoldPlugin(
     throw new Error(
       "plugin has skills but no activation cases — every skill must ship an activation eval",
     );
+  }
+  // Cross-check activation cases against the declared skills BEFORE writing, so a
+  // typo'd spec fails cleanly instead of leaving a half-scaffolded dir for --force.
+  if (skills.length > 0) {
+    const skillNames = new Set(skills.map((s) => s.name));
+    for (const c of spec.activation ?? []) {
+      if (c.expect !== null && !skillNames.has(c.expect)) {
+        throw new Error(
+          `activation case expects "${c.expect}" but no such skill is declared`,
+        );
+      }
+    }
+    for (const s of skills) {
+      const hasPositive = (spec.activation ?? []).some((c) => c.expect === s.name);
+      if (!hasPositive) {
+        throw new Error(
+          `skill "${s.name}" has no positive activation case (expect: "${s.name}")`,
+        );
+      }
+    }
   }
 
   const dir = join(pluginsDir, spec.name);
