@@ -1,0 +1,11 @@
+{
+  "name": "@objectcore/registry-db",
+  "version": "0.0.1",
+  "type": "module",
+  "module": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@objectcore/registry-core": "workspace:*",
+    "@libsql/client": "^0.14.0"
+  }
+}

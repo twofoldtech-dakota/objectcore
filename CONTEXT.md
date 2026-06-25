@@ -20,11 +20,19 @@ Single definitions so every generator and human speaks one vocabulary.
   pointer (`url`+`path`+`sha`+`ref`) instead of a bare path. Same `deriveCatalog`, with `shaPin`.
 - **Provenance** — a build attestation for a published artifact. A plugin that bundles an MCP
   server is a managed credential and must not publish without it.
-- **Registry** — whatever serves `marketplace.json` over a stable URL. Today: Git + CI. Later:
-  the Hono backend at `objectcore.ai/v1/marketplace.json`. The URL is permanent; the server swaps.
-- **Source / Sink** — the registry-core ports. `CatalogSource` reads plugins (Git now, DB later);
-  `CatalogSink` publishes the catalog (file now, HTTP later).
+- **Registry** — whatever serves `marketplace.json` over a stable URL. The URL is permanent
+  (`objectcore.ai/v1/marketplace.json`); the server swaps. Dev loop: Git + the Hono app. Stage 3:
+  the same Hono app on Fly.io reading the registry DB. It always serves the SHA-pinned form.
+- **Source / Sink** — the registry-core ports. `CatalogSource` reads plugins (`GitWorkspaceSource`
+  off disk; `RegistryDbSource` from the DB at Stage 3); `CatalogSink` publishes the catalog
+  (`GitFileSink` writes the file; `HttpServeSink` serves it; `RegistryDbSink` ingests the pinned
+  catalog into the DB). Reads swap the source; writes swap the sink.
+- **Registry DB** — the Stage 3 store behind `RegistryDbSource`/`RegistryDbSink` (Turso/libSQL via
+  `@objectcore/registry-db`). Stores RAW manifests + pin coordinates (`relDir`/`sha`/`ref`/`repoUrl`)
+  in append-only `plugin_versions`, with a `channels` table pointing each plugin to its current
+  version. It is a source of plugin *rows*, never of finished entries — `deriveCatalog` still shapes
+  them at read time.
 - **The seam** — `deriveCatalog(plugins) -> marketplace.json`, the pure function both the CI job
-  and the future backend import. The invariant that makes the backend a relocation, not a rewrite.
+  and the backend import. The invariant that makes the backend a relocation, not a rewrite.
 - **Trigger surface** — a skill's `name` + `description`: the metadata seen every session that
   decides whether the skill fires. Drafted as a first-class generator output, gated by eval.

@@ -1,12 +1,13 @@
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
+import { GitWorkspaceSource } from "@objectcore/registry-core";
 import { createApp } from "./app";
 
 const root = join(import.meta.dir, "..", "..", "..");
 const cfg = JSON.parse(readFileSync(join(root, "objectcore.config.json"), "utf8"));
 
 const app = createApp({
-  pluginsDir: join(root, "plugins"),
+  source: new GitWorkspaceSource(join(root, "plugins")),
   derive: { name: cfg.name, owner: cfg.owner, pluginRoot: cfg.pluginRoot, schema: cfg.schema },
 });
 

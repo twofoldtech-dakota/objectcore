@@ -1,0 +1,52 @@
+name: deploy
+
+# Deploy the registry backend to Fly.io on merge to main. Inert until the
+# FLY_API_TOKEN secret is configured: the guard step exits the job early when the
+# token is unset (GitHub `if:` cannot read `secrets` directly), so this workflow is
+# a harmless no-op until the Stage 3 host is provisioned.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency: deploy-${{ github.ref }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard — require FLY_API_TOKEN
+        id: guard
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "FLY_API_TOKEN not set — skipping deploy (Stage 3 host not configured yet)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.guard.outputs.skip != 'true'
+
+      - uses: oven-sh/setup-bun@v2
+        if: steps.guard.outputs.skip != 'true'
+        with:
+          bun-version: latest
+
+      - name: Install (frozen lockfile)
+        if: steps.guard.outputs.skip != 'true'
+        run: bun install --frozen-lockfile
+
+      # Never deploy an un-validated catalog.
+      - name: Validate catalog
+        if: steps.guard.outputs.skip != 'true'
+        run: bun run check:catalog
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.guard.outputs.skip != 'true'
+
+      - name: Deploy to Fly.io
+        if: steps.guard.outputs.skip != 'true'
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

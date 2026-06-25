@@ -16,6 +16,10 @@ Your output is not plugins. It is the system that produces and governs plugins.
   A plugin that parses but never activates is worse than one that fails to parse.
 - **Before any direct-URL distribution, migrate off relative-path sources** to
   `github`/`git-subdir`/`npm` — relative paths only resolve under Git distribution.
+- **The catalog served over the registry URL is the SHA-pinned (git-subdir) form**, never the
+  committed bare-path file. The committed `marketplace.json` is derived WITHOUT pins and stays
+  byte-exact (`check:catalog`); pins live only in `dist/marketplace.pinned.json`, the registry DB,
+  and the served response. Same `deriveCatalog`, with `shaPin` — never a second derivation.
 - **Treat every MCP-bundling plugin as a managed credential.** Block publish without provenance.
 
 ## Workflow
@@ -28,6 +32,11 @@ Your output is not plugins. It is the system that produces and governs plugins.
 6. Changesets -> release CI. Add `.changeset/<name>.md`; `bun run release:version` bumps
    `plugin.json` + re-derives the catalog (CI opens the Version PR); `bun run release:publish`
    tags `{plugin}--v{semver}`, SHA-pins the catalog (`deriveCatalog`'s `shaPin`), and attests.
+7. Stage 3 backend (Fly.io + Turso). `bun run registry:prod` serves the SHA-pinned catalog from
+   the registry DB (`RegistryDbSource`); `bun run db:migrate` applies the schema; `bun run
+   registry:ingest` pushes the published pinned catalog into the DB (`RegistryDbSink`) — release
+   CI runs it so the live backend updates with no redeploy. Source swap is one line behind
+   `createApp`; the route and `deriveCatalog` never change. (DB-mode steps self-gate on `DATABASE_URL`.)
 
 `bun run check` runs steps 2–4 together (tsc + catalog validation + tests + evals) — the
 single gate `.github/workflows/ci.yml` enforces on every PR. Set the `ANTHROPIC_API_KEY`
