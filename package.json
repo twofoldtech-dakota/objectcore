@@ -14,6 +14,7 @@
     "release:publish": "bun run scripts/release-publish.ts",
     "check:catalog": "bun run scripts/check-catalog.ts",
     "check": "bunx tsc && bun run check:catalog && bun test && bun run eval",
+    "clean:git": "bun run scripts/clean-git.ts",
     "registry:dev": "bun run packages/registry-server/src/dev.ts",
     "registry:prod": "bun run packages/registry-server/src/prod.ts",
     "registry:ingest": "bun run scripts/registry-ingest.ts",
