@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { deriveCatalog, type CatalogSource, type DeriveOpts } from "@objectcore/registry-core";
+import { deriveCatalog, searchCatalog, type CatalogSource, type DeriveOpts } from "@objectcore/registry-core";
 
 export interface ServerOpts {
   /** Where plugins come from. Git off disk (dev) or the registry DB (Stage 3 prod).
@@ -30,6 +30,19 @@ export function createApp(opts: ServerOpts): Hono {
     const plugins = await opts.source.listPlugins();
     const derive = typeof opts.derive === "function" ? await opts.derive() : opts.derive;
     return c.json(deriveCatalog(plugins, derive));
+  });
+
+  app.get("/v1/search", async (c) => {
+    const plugins = await opts.source.listPlugins();
+    const derive = typeof opts.derive === "function" ? await opts.derive() : opts.derive;
+    const catalog = deriveCatalog(plugins, derive);
+    return c.json(
+      searchCatalog(catalog, {
+        q: c.req.query("q"),
+        keyword: c.req.query("keyword"),
+        category: c.req.query("category"),
+      }),
+    );
   });
 
   app.get("/healthz", (c) => c.json({ ok: true }));

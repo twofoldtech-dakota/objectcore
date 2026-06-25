@@ -59,6 +59,14 @@ test("a pinned derive resolver (shaPin+repoUrl) yields git-subdir sources over t
   });
 });
 
+test("GET /v1/search filters the derived catalog", async () => {
+  const app = createApp({ source: new MockSource(fixture), derive: base });
+  const res = await app.request("/v1/search?q=alpha");
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { count: number; plugins: { name: string }[] };
+  expect(body.plugins.map((p) => p.name)).toEqual(["alpha-plugin"]);
+});
+
 test("GET /healthz", async () => {
   const app = createApp({ source: new MockSource([]), derive: base });
   const res = await app.request("/healthz");
