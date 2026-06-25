@@ -16,6 +16,9 @@ honor its STOP conditions, and update your row below when done.
 | 001 | Serve per-channel catalogs at `/v1/:channel/marketplace.json` (canary) | P1 | M | 004 | DONE (merged to main `cce7a1e`) |
 | 002 | Add a read-only `/v1/search` route over the derived catalog | P2 | M | — | DONE (merged to main `0453438`) |
 | 003 | (spike) Ship the first real plugin via `/forge` + report forge gaps | P2 | M | — | DONE (spike) — report delivered; `commit-craft` NOT merged (activation eval unrun + stub skill body). Branch `advisor/003-forge-first-plugin`. |
+| 005 | Forge engine guards — pre-write activation↔skill cross-check + stub marker | P2 | S | — | DONE (merged to main `9beeee8`) |
+| 006 | Eval gate — require a negative case + fail unfilled (`forge:todo`) bodies | P2 | S–M | 005 | TODO |
+| 007 | Forge prose — trigger-surface recipe, case budget, category vocab, real body | P3 | S | 006 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
@@ -40,31 +43,29 @@ All four roadmap plans (004, 001, 003-spike, 002) are now executed. The
 forge spike surfaced concrete follow-ups (below) and an open decision about
 `commit-craft`.
 
-## Follow-ups surfaced by the 003 forge spike
+## Follow-ups surfaced by the 003 forge spike → plans 005–007
 
-The spike's gap report (`plans/notes/003-forge-spike-findings.md`) recommends 4
-scoped hardening plans for the forge pipeline — not yet written:
+The spike's gap report (`plans/notes/003-forge-spike-findings.md`) made 4
+recommendations. They were regrouped **by file ownership** into 3 plans so each
+runs cleanly (engine / eval / prose):
 
-1. **Gate the negative half of the trigger surface** — make the coverage eval
-   require ≥1 `expect:null` case per skill (and flag a missing confusability
-   negative). Today only "≥1 positive" is enforced, so the "stays quiet on
-   near-misses" half is unchecked. Scope: `@objectcore/eval` + `planning` prose. S.
-2. **Add a trigger-surface recipe + activation-case budget to the forge prose** —
-   name the artifact+form+entry-triggers pattern and a default case budget in
-   `planning`/`writing-great-skills`. Scope: prose only. S.
-3. **Stop real skills shipping a stub body** — require `body` for non-meta
-   plugins, or make the default body a visible `<!-- TODO -->`, plus an eval that
-   fails when a skill body is byte-identical to the generated stub. Scope:
-   `packages/forge/src/scaffold.ts` + small eval. S–M.
-4. **Move activation↔skill cross-validation into the pre-write guard** — in
-   `scaffoldPlugin`, assert every `activation[].expect` names a real skill and
-   every skill has a positive case *before* writing files. Scope:
-   `packages/forge/src/scaffold.ts` + unit test. S.
+- **005 (engine, DONE/merged)** = rec 4 (pre-write activation↔skill cross-check) +
+  rec 3-engine (default body now carries a visible `<!-- forge:todo -->` stub
+  marker). `packages/forge/src/scaffold.ts`.
+- **006 (eval, TODO)** = rec 1 (require ≥1 negative case per skill-bearing plugin) +
+  rec 3-eval (fail any shipped skill body still containing `forge:todo`).
+  `packages/eval/{coverage,trigger-surface}.ts`. Depends on 005's marker.
+- **007 (prose, TODO)** = rec 2 (trigger-surface recipe + activation-case budget) +
+  the category vocabulary + the real-body requirement, documenting what 005/006
+  enforce. `plugins/plugin-forge/skills/*/SKILL.md`. Depends on 006.
+
+Execution order for the remaining two: **006 then 007** (006 enforces; 007's prose
+describes the enforcement).
 
 Open decision on `commit-craft`: either (a) finish it — write a real skill body
-and run `bun run eval` with the key to pass the activation gate, then merge; or
-(b) treat it as a throwaway spike vehicle and drop the branch, keeping only the
-gap report. It must not be merged as-is.
+(guided by the hardened 007 prose) and run `bun run eval` with the key to pass the
+activation gate, then merge; or (b) treat it as a throwaway spike vehicle and drop
+the branch, keeping only the gap report. It must not be merged as-is.
 
 ## Dependency notes
 
