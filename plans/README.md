@@ -14,8 +14,8 @@ honor its STOP conditions, and update your row below when done.
 |------|-------|----------|--------|------------|--------|
 | 004 | Migrate DB on prod boot + DB-touching `/readyz` (deploy safety) | P1 | S | — | DONE (merged to main `fd344a4`) |
 | 001 | Serve per-channel catalogs at `/v1/:channel/marketplace.json` (canary) | P1 | M | 004 | DONE (merged to main `cce7a1e`) |
-| 002 | Add a read-only `/v1/search` route over the derived catalog | P2 | M | — | TODO |
-| 003 | (spike) Ship the first real plugin via `/forge` + report forge gaps | P2 | M | — | TODO |
+| 002 | Add a read-only `/v1/search` route over the derived catalog | P2 | M | — | DONE (merged to main `0453438`) |
+| 003 | (spike) Ship the first real plugin via `/forge` + report forge gaps | P2 | M | — | DONE (spike) — report delivered; `commit-craft` NOT merged (activation eval unrun + stub skill body). Branch `advisor/003-forge-first-plugin`. |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
@@ -31,9 +31,40 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED 
 2. ~~**004 (deploy safety)**~~ — **DONE**, merged to main `fd344a4`.
 3. ~~**001 (channels/canary)**~~ — **DONE**, merged to main `cce7a1e`. The
    additive-route pattern is now established and proven behind the frozen seam.
-4. **003 (forge spike)** — ship the first real plugin and learn where the forge
-   prose needs hardening. Fully independent; next up.
-5. **002 (search)** — second read-only route; pure filter over the derived catalog.
+4. ~~**003 (forge spike)**~~ — **DONE (spike)**. Gap report at
+   `plans/notes/003-forge-spike-findings.md`; `commit-craft` is on branch
+   `advisor/003-forge-first-plugin`, **held** (not catalog-ready — see below).
+5. ~~**002 (search)**~~ — **DONE**, merged to main `0453438`.
+
+All four roadmap plans (004, 001, 003-spike, 002) are now executed. The
+forge spike surfaced concrete follow-ups (below) and an open decision about
+`commit-craft`.
+
+## Follow-ups surfaced by the 003 forge spike
+
+The spike's gap report (`plans/notes/003-forge-spike-findings.md`) recommends 4
+scoped hardening plans for the forge pipeline — not yet written:
+
+1. **Gate the negative half of the trigger surface** — make the coverage eval
+   require ≥1 `expect:null` case per skill (and flag a missing confusability
+   negative). Today only "≥1 positive" is enforced, so the "stays quiet on
+   near-misses" half is unchecked. Scope: `@objectcore/eval` + `planning` prose. S.
+2. **Add a trigger-surface recipe + activation-case budget to the forge prose** —
+   name the artifact+form+entry-triggers pattern and a default case budget in
+   `planning`/`writing-great-skills`. Scope: prose only. S.
+3. **Stop real skills shipping a stub body** — require `body` for non-meta
+   plugins, or make the default body a visible `<!-- TODO -->`, plus an eval that
+   fails when a skill body is byte-identical to the generated stub. Scope:
+   `packages/forge/src/scaffold.ts` + small eval. S–M.
+4. **Move activation↔skill cross-validation into the pre-write guard** — in
+   `scaffoldPlugin`, assert every `activation[].expect` names a real skill and
+   every skill has a positive case *before* writing files. Scope:
+   `packages/forge/src/scaffold.ts` + unit test. S.
+
+Open decision on `commit-craft`: either (a) finish it — write a real skill body
+and run `bun run eval` with the key to pass the activation gate, then merge; or
+(b) treat it as a throwaway spike vehicle and drop the branch, keeping only the
+gap report. It must not be merged as-is.
 
 ## Dependency notes
 
