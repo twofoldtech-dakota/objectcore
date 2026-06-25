@@ -12,6 +12,6 @@ Grill until you can answer, concretely:
 - **Scope & non-goals** — what is explicitly in, and what is explicitly *out*?
 - **Constraints** — runtime, dependencies, distribution, naming, and any prior decisions that must hold.
 - **Component shape** — is this a workflow (skills), an action (commands), or automation (hooks/agents)? Prefer workflow-enforcement over capability-extension.
-- **Verification** — how is each outcome checked? For every skill, name the prompt that MUST fire it and a near-miss that must NOT.
+- **Verification** — how is each outcome checked? For every skill, name **≥2 prompts that MUST fire it** (distinct intents), a **clearly-unrelated negative** that must not, and a **confusability near-miss** aimed at a sibling surface.
 
 Pin the answers as a short `spec.md`. If any answer is "it depends", "probably", or "we'll see", keep grilling — do not hand off to `planning` until the spec is decided.
