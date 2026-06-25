@@ -5,6 +5,22 @@
   },
   "plugins": [
     {
+      "name": "commit-craft",
+      "source": "commit-craft",
+      "description": "Write clear, conventional git commit messages from your staged changes.",
+      "version": "0.1.0",
+      "author": {
+        "name": "twofoldtech-dakota"
+      },
+      "license": "MIT",
+      "keywords": [
+        "git",
+        "commits",
+        "workflow"
+      ],
+      "category": "workflow"
+    },
+    {
       "name": "hello-objectcore",
       "source": "hello-objectcore",
       "description": "Minimal demo plugin proving the ObjectCore derive + validate pipeline end to end.",

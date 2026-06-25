@@ -1,0 +1,15 @@
+{
+  "name": "commit-craft",
+  "version": "0.1.0",
+  "description": "Write clear, conventional git commit messages from your staged changes.",
+  "author": {
+    "name": "twofoldtech-dakota"
+  },
+  "license": "MIT",
+  "keywords": [
+    "git",
+    "commits",
+    "workflow"
+  ],
+  "category": "workflow"
+}
