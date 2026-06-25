@@ -13,7 +13,7 @@ honor its STOP conditions, and update your row below when done.
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 004 | Migrate DB on prod boot + DB-touching `/readyz` (deploy safety) | P1 | S | — | DONE (merged to main `fd344a4`) |
-| 001 | Serve per-channel catalogs at `/v1/:channel/marketplace.json` (canary) | P1 | M | 004 (reconciled on top) | IN PROGRESS |
+| 001 | Serve per-channel catalogs at `/v1/:channel/marketplace.json` (canary) | P1 | M | 004 | DONE (merged to main `cce7a1e`) |
 | 002 | Add a read-only `/v1/search` route over the derived catalog | P2 | M | — | TODO |
 | 003 | (spike) Ship the first real plugin via `/forge` + report forge gaps | P2 | M | — | TODO |
 
@@ -28,25 +28,27 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED 
    — so `deploy.yml` is **armed** (next push to main runs `flyctl deploy`) and
    release CI will `registry:ingest` into Turso. This promotes **C3** below from
    deferred to live (see Deferred section).
-2. **004 (deploy safety)** — do this before any deploy: migrate the Turso schema
-   on prod boot and gate Fly's health check on a DB-touching `/readyz`, so an
-   armed deploy can't serve 500s. Small/low-risk.
-3. **001 (channels/canary)** — the lowest-risk additive route; the channels data
-   model is already built, only the HTTP route is missing. Establishes the
-   additive-route pattern. (Touches the same files as 004 — see Dependency notes.)
+2. ~~**004 (deploy safety)**~~ — **DONE**, merged to main `fd344a4`.
+3. ~~**001 (channels/canary)**~~ — **DONE**, merged to main `cce7a1e`. The
+   additive-route pattern is now established and proven behind the frozen seam.
 4. **003 (forge spike)** — ship the first real plugin and learn where the forge
-   prose needs hardening. Can run in parallel with the others (fully independent).
+   prose needs hardening. Fully independent; next up.
 5. **002 (search)** — second read-only route; pure filter over the derived catalog.
 
 ## Dependency notes
 
 - 002 and 003 are independent of everything — disjoint files, any order, parallel.
-- **004 has landed on main (`fd344a4`); 001 was reconciled on top of it.** Both
-  edit `app.ts`/`prod.ts`/`app.test.ts` with disjoint, optional additions (004:
-  `ready?` + `/readyz` + boot-time migrate; 001: a `channels` resolver +
-  `/v1/:channel/...` route). 001's "Current state" excerpts now show the post-004
-  code, and its steps add `channels` *alongside* 004's `ready`/`migrate` — never
-  removing them.
+- **004 and 001 are both DONE and merged to main** (`fd344a4`, `cce7a1e`). The
+  `app.ts`/`prod.ts` adapter now carries `ready?` + `/readyz` + boot-migrate (004)
+  and a `channels` resolver + `/v1/:channel/...` route (001), all behind the
+  frozen `/v1/marketplace.json` seam.
+- **Executor worktree gotcha (applies to running 002/003):** isolated agent
+  worktrees are created from the *session base commit*, not live `main`, and an
+  executor that STOPs without committing gets its worktree auto-removed (resuming
+  it then lands in an orphaned dir). So every executor prompt must start with a
+  robust step-0 — `git checkout -B advisor/<NNN>-<slug> main && bun install` —
+  then verify the expected base markers are on disk before editing, and must
+  COMMIT its work. (This is why 001 took two dispatches.)
 - 002's Maintenance notes describe an optional `/v1/:channel/search` follow-up
   that *would* depend on 001; that follow-up is not planned here.
 - 003 (the forge spike) is expected to **spawn follow-up plans** (hardening the
