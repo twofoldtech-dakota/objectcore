@@ -8,6 +8,9 @@ export interface ServerOpts {
   /** Derive options, or a resolver that builds them per request — the DB path uses
    *  the resolver to attach `shaPin`/`repoUrl` from the same rows it serves. */
   derive: DeriveOpts | (() => DeriveOpts | Promise<DeriveOpts>);
+  /** Optional readiness probe: returns true when the backing dependency (e.g. the
+   *  registry DB) is reachable. Wired in prod; omitted in dev/tests defaults ready. */
+  ready?: () => Promise<boolean>;
 }
 
 // The HTTP adapter. Dev-loop server now; the SAME app serves prod at Stage 3 (swap
@@ -24,5 +27,16 @@ export function createApp(opts: ServerOpts): Hono {
   });
 
   app.get("/healthz", (c) => c.json({ ok: true }));
+
+  app.get("/readyz", async (c) => {
+    if (!opts.ready) return c.json({ ready: true });
+    try {
+      return (await opts.ready())
+        ? c.json({ ready: true })
+        : c.json({ ready: false }, 503);
+    } catch (err) {
+      return c.json({ ready: false, error: String(err) }, 503);
+    }
+  });
   return app;
 }

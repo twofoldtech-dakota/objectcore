@@ -60,3 +60,27 @@ test("GET /healthz", async () => {
   const res = await app.request("/healthz");
   expect(await res.json()).toEqual({ ok: true });
 });
+
+test("GET /readyz returns 200 when ready() resolves true", async () => {
+  const app = createApp({ source: new MockSource([]), derive: base, ready: async () => true });
+  const res = await app.request("/readyz");
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ ready: true });
+});
+
+test("GET /readyz returns 503 when ready() throws", async () => {
+  const app = createApp({
+    source: new MockSource([]),
+    derive: base,
+    ready: async () => { throw new Error("db down"); },
+  });
+  const res = await app.request("/readyz");
+  expect(res.status).toBe(503);
+});
+
+test("GET /readyz defaults to ready when no checker is wired", async () => {
+  const app = createApp({ source: new MockSource([]), derive: base });
+  const res = await app.request("/readyz");
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ ready: true });
+});
