@@ -35,6 +35,24 @@
       ]
     },
     {
+      "name": "knowledge-base",
+      "source": "knowledge-base",
+      "description": "Capture and curate durable lessons, patterns, gotchas, and decisions in ObjectCore's factory knowledge base.",
+      "version": "0.1.0",
+      "author": {
+        "name": "twofoldtech-dakota"
+      },
+      "license": "MIT",
+      "keywords": [
+        "objectcore",
+        "meta",
+        "governance",
+        "knowledge",
+        "memory",
+        "self-improvement"
+      ]
+    },
+    {
       "name": "marketplace-builder",
       "source": "marketplace-builder",
       "description": "ObjectCore meta-plugin: governs the catalog build — derive marketplace.json from the plugin graph through the single deriveCatalog seam, validate, and keep it in sync.",
