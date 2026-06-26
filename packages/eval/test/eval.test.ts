@@ -6,13 +6,20 @@ import { GitWorkspaceSource } from "@objectcore/registry-core";
 import { deriveCatalog } from "@objectcore/registry-core";
 import type { MarketplaceJson, WorkspacePlugin } from "@objectcore/registry-core";
 
-import { parseFrontmatter, collectSkillSurfaces, extractSurfaces } from "../src/trigger-surface";
+import {
+  parseFrontmatter,
+  collectSkillSurfaces,
+  collectAgentSurfaces,
+  extractSurfaces,
+} from "../src/trigger-surface";
 import { runOutputEvals } from "../src/output";
 import { runCoverageEvals, runReadinessEvals } from "../src/coverage";
 import { MockJudge } from "../src/judge";
 import { runPluginActivation } from "../src/activation";
+import { runPluginDelegation } from "../src/delegation";
+import { buildEvidence, summarizeEvidence } from "../src/evidence";
 import { buildReport, isGreen } from "../src/runner";
-import type { ActivationSpec, TriggerSurface } from "../src/types";
+import type { ActivationSpec, DelegationSpec, EvalResult, TriggerSurface } from "../src/types";
 
 const repoRoot = join(import.meta.dir, "..", "..", "..");
 const pluginsDir = join(repoRoot, "plugins");
@@ -210,4 +217,136 @@ test("buildReport tallies and isGreen reflects error-level failures", async () =
   expect(report.failed).toBe(1);
   expect(isGreen(report)).toBe(false);
   expect(report.skipped.length).toBe(1);
+});
+
+// --- agent surfaces + delegation gate (F4) -----------------------------------
+
+/** Write a minimal agents-only plugin: manifest + agents/<name>.md + delegation.json. */
+async function writeAgentPlugin(
+  root: string,
+  name: string,
+  agent: string,
+  body: string,
+  expectName: string | null,
+  withNegative: boolean,
+): Promise<void> {
+  const dir = join(root, name);
+  await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+  await writeFile(
+    join(dir, ".claude-plugin", "plugin.json"),
+    JSON.stringify({ name, version: "0.0.1", description: "d" }) + "\n",
+  );
+  await mkdir(join(dir, "agents"), { recursive: true });
+  await writeFile(
+    join(dir, "agents", `${agent}.md`),
+    `---\nname: ${agent}\ndescription: handle ${agent} work\n---\n${body}\n`,
+  );
+  await mkdir(join(dir, "evals"), { recursive: true });
+  const cases: { prompt: string; expect: string | null }[] = [
+    { prompt: "p", expect: expectName },
+  ];
+  if (withNegative) cases.push({ prompt: "n", expect: null });
+  await writeFile(join(dir, "evals", "delegation.json"), JSON.stringify({ cases }) + "\n");
+}
+
+test("extractSurfaces + collectAgentSurfaces pick up agents with kind:'agent'", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agt-surf-"));
+  try {
+    await writeAgentPlugin(root, "agp", "doer", "real body", "doer", true);
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const surfaces = await extractSurfaces(plugins[0]!);
+    const agent = surfaces.find((s) => s.name === "doer");
+    expect(agent?.kind).toBe("agent");
+    const agents = await collectAgentSurfaces(plugins);
+    expect(agents.map((a) => a.name)).toEqual(["doer"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("coverage: an agent with a positive delegation case passes; an uncovered agent fails", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agt-cov-"));
+  try {
+    await writeAgentPlugin(root, "wired", "wired-agent", "real body", "wired-agent", true);
+    await writeAgentPlugin(root, "ungated", "lonely-agent", "real body", null, false);
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runCoverageEvals(plugins);
+
+    const wired = results.find((r) => r.plugin === "wired" && r.name === "delegates:wired-agent");
+    expect(wired?.passed).toBe(true);
+
+    const ungated = results.find((r) => r.plugin === "ungated" && r.name === "delegates:lonely-agent");
+    expect(ungated?.passed).toBe(false);
+    expect(ungated?.level).toBe("error");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readiness: an agent plugin needs a negative delegation case and a filled body", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agt-rdy-"));
+  try {
+    // no negative case + a forge:todo stub body
+    await writeAgentPlugin(root, "stubby", "a", "<!-- forge:todo --> unfilled", "a", false);
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runReadinessEvals(plugins);
+
+    const neg = results.find((r) => r.plugin === "stubby" && r.name === "has-negative-delegation");
+    expect(neg?.passed).toBe(false);
+
+    const body = results.find((r) => r.plugin === "stubby" && r.name === "agent-body-filled:a");
+    expect(body?.passed).toBe(false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("delegation: scores cases against agent surfaces (pass and fail), carrying confidence", async () => {
+  const AGENT_SURFACES: TriggerSurface[] = [
+    { id: "p:reviewer", name: "reviewer", kind: "agent", plugin: "p", description: "reviews diffs" },
+  ];
+  const judge = new MockJudge((prompt, candidates) => {
+    const hit = candidates.find((c) => prompt.toLowerCase().includes(c.name));
+    return hit
+      ? { skill: hit.name, confidence: 0.4, reason: "name in prompt" }
+      : { skill: null, confidence: 0.9, reason: "no match" };
+  });
+  const plugin = { manifest: { name: "p" }, dir: "/x", relDir: "p" } as WorkspacePlugin;
+  const spec: DelegationSpec = {
+    cases: [
+      { prompt: "please reviewer this", expect: "reviewer" }, // pass (low confidence)
+      { prompt: "something neutral", expect: null }, // pass
+      { prompt: "a neutral prompt with no agent name", expect: "reviewer" }, // fail (fires none)
+    ],
+  };
+  const results = await runPluginDelegation(plugin, spec, AGENT_SURFACES, judge);
+  expect(results.map((r) => r.passed)).toEqual([true, true, false]);
+  expect(results.every((r) => r.suite === "delegation")).toBe(true);
+  expect(results[0]!.confidence).toBe(0.4);
+});
+
+// --- EDDOps evidence ---------------------------------------------------------
+
+test("buildEvidence collects failures and flags low-confidence passes as near-misses", () => {
+  const results: EvalResult[] = [
+    { suite: "output", name: "has-description", level: "error", passed: true, detail: "ok" },
+    { suite: "activation", name: "case-0: x", level: "error", passed: false, detail: "misrouted" },
+    { suite: "activation", name: "case-1: y", level: "error", passed: true, detail: "fired", confidence: 0.4 },
+    { suite: "activation", name: "case-2: z", level: "error", passed: true, detail: "fired", confidence: 0.95 },
+  ];
+  const report = buildReport(results, ["delegation — no key"]);
+  const evidence = buildEvidence(report, { now: "2026-06-26T00:00:00.000Z" });
+
+  expect(evidence.green).toBe(false);
+  expect(evidence.failures).toHaveLength(1);
+  expect(evidence.failures[0]!.name).toBe("case-0: x");
+  // 0.4 ≤ threshold is a near-miss; 0.95 is not.
+  expect(evidence.nearMisses.map((n) => n.name)).toEqual(["case-1: y"]);
+  expect(evidence.skipped).toEqual(["delegation — no key"]);
+  expect(evidence.generatedAt).toBe("2026-06-26T00:00:00.000Z");
+
+  const summary = summarizeEvidence(evidence);
+  expect(summary).toContain("gate RED");
+  expect(summary).toContain("case-0: x");
+  expect(summary).toContain("near-misses");
 });

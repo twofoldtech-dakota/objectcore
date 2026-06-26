@@ -86,18 +86,42 @@ async function readCommandSurfaces(
   return surfaces;
 }
 
-/** All trigger surfaces (skills + commands) exposed by one plugin. */
+async function readAgentSurfaces(
+  plugin: WorkspacePlugin,
+  agentsDir: string,
+): Promise<TriggerSurface[]> {
+  if (!(await isDir(agentsDir))) return [];
+  const surfaces: TriggerSurface[] = [];
+  for (const entry of (await readdir(agentsDir)).sort()) {
+    if (!entry.endsWith(".md") || entry.startsWith(".")) continue;
+    const raw = await readFile(join(agentsDir, entry), "utf8");
+    const fm = parseFrontmatter(raw);
+    const name = fm.name || entry.slice(0, -".md".length);
+    surfaces.push({
+      id: `${plugin.manifest.name}:${name}`,
+      name,
+      kind: "agent",
+      plugin: plugin.manifest.name,
+      description: fm.description ?? "",
+    });
+  }
+  return surfaces;
+}
+
+/** All trigger surfaces (skills + commands + agents) exposed by one plugin. */
 export async function extractSurfaces(
   plugin: WorkspacePlugin,
 ): Promise<TriggerSurface[]> {
   // Honor manifest path overrides; otherwise the conventional component dirs.
   const skillsDir = join(plugin.dir, plugin.manifest.skills ?? "skills");
   const commandsDir = join(plugin.dir, plugin.manifest.commands ?? "commands");
-  const [skills, commands] = await Promise.all([
+  const agentsDir = join(plugin.dir, plugin.manifest.agents ?? "agents");
+  const [skills, commands, agents] = await Promise.all([
     readSkillSurfaces(plugin, skillsDir),
     readCommandSurfaces(plugin, commandsDir),
+    readAgentSurfaces(plugin, agentsDir),
   ]);
-  return [...skills, ...commands];
+  return [...skills, ...commands, ...agents];
 }
 
 /** All skill surfaces across the workspace — the candidate set for a router. */
@@ -106,6 +130,14 @@ export async function collectSkillSurfaces(
 ): Promise<TriggerSurface[]> {
   const all = await Promise.all(plugins.map((p) => extractSurfaces(p)));
   return all.flat().filter((s) => s.kind === "skill");
+}
+
+/** All agent surfaces across the workspace — the candidate set for delegation. */
+export async function collectAgentSurfaces(
+  plugins: WorkspacePlugin[],
+): Promise<TriggerSurface[]> {
+  const all = await Promise.all(plugins.map((p) => extractSurfaces(p)));
+  return all.flat().filter((s) => s.kind === "agent");
 }
 
 /** Raw SKILL.md content per skill (entry-based walk), for body-quality checks
@@ -127,6 +159,23 @@ export async function readSkillBodies(
     }
     const fm = parseFrontmatter(raw);
     out.push({ name: fm.name || entry, raw });
+  }
+  return out;
+}
+
+/** Raw `agents/<name>.md` content per agent, for the body-quality (unfilled-stub)
+ *  check — the agent analogue of readSkillBodies. */
+export async function readAgentBodies(
+  plugin: WorkspacePlugin,
+): Promise<{ name: string; raw: string }[]> {
+  const agentsDir = join(plugin.dir, plugin.manifest.agents ?? "agents");
+  if (!(await isDir(agentsDir))) return [];
+  const out: { name: string; raw: string }[] = [];
+  for (const entry of (await readdir(agentsDir)).sort()) {
+    if (!entry.endsWith(".md") || entry.startsWith(".")) continue;
+    const raw = await readFile(join(agentsDir, entry), "utf8");
+    const fm = parseFrontmatter(raw);
+    out.push({ name: fm.name || entry.slice(0, -".md".length), raw });
   }
   return out;
 }

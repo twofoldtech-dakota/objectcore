@@ -43,6 +43,7 @@ export async function runPluginActivation(
       name: `case-${i}: ${snippet(c.prompt)}`,
       level: "error",
       passed,
+      confidence: decision.confidence,
       detail: passed
         ? `fired ${gotLabel} as expected`
         : `expected ${wantLabel}, judge fired ${gotLabel} (${decision.reason})`,

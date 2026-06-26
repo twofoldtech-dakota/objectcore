@@ -208,6 +208,32 @@ export async function scaffoldPlugin(
       }
     }
   }
+  // The agent analogue of the skill rule: an agent the orchestrator never delegates
+  // to is worse than one that fails to parse, so a plugin with agents must ship
+  // delegation cases that gate each one (F4 closed this gap).
+  if (agents.length > 0) {
+    if (!(spec.delegation && spec.delegation.length)) {
+      throw new Error(
+        "plugin has agents but no delegation cases — every agent must ship a delegation eval",
+      );
+    }
+    const agentNames = new Set(agents.map((a) => a.name));
+    for (const c of spec.delegation) {
+      if (c.expect !== null && !agentNames.has(c.expect)) {
+        throw new Error(
+          `delegation case expects "${c.expect}" but no such agent is declared`,
+        );
+      }
+    }
+    for (const a of agents) {
+      const hasPositive = spec.delegation.some((c) => c.expect === a.name);
+      if (!hasPositive) {
+        throw new Error(
+          `agent "${a.name}" has no positive delegation case (expect: "${a.name}")`,
+        );
+      }
+    }
+  }
 
   const dir = join(pluginsDir, spec.name);
   if (!opts.force && (await exists(dir))) {
@@ -246,6 +272,9 @@ export async function scaffoldPlugin(
 
   if (spec.activation?.length) {
     await emit(written, join(dir, "evals", "activation.json"), json({ cases: spec.activation }));
+  }
+  if (spec.delegation?.length) {
+    await emit(written, join(dir, "evals", "delegation.json"), json({ cases: spec.delegation }));
   }
   const expectEntry = spec.expectEntry ?? { version: spec.version ?? "0.0.1" };
   await emit(written, join(dir, "evals", "output.json"), json({ expectEntry }));
