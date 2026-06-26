@@ -1,0 +1,5 @@
+{
+  ".claude-plugin/plugin.json": "{\n  \"name\": \"golden-mcp\",\n  \"version\": \"0.0.1\",\n  \"description\": \"An MCP-only plugin.\",\n  \"license\": \"MIT\"\n}\n",
+  ".mcp.json": "{\n  \"mcpServers\": {\n    \"my-server\": {\n      \"command\": \"bun\",\n      \"args\": [\n        \"${CLAUDE_PLUGIN_ROOT}/server.ts\"\n      ]\n    }\n  }\n}\n",
+  "evals/output.json": "{\n  \"expectEntry\": {\n    \"version\": \"0.0.1\"\n  }\n}\n"
+}

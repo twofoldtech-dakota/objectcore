@@ -164,11 +164,16 @@ deliberately narrow and widens only as trust is earned.
 ## Staged build path (for a future, separately-approved iteration — NOT this plan)
 
 1. **Phase 0 — the meta-eval corpus + the boundary enforcer (TCB; no optimizer
-   yet).** Add the golden-snapshot suite and the bad-spec guard corpus to
-   `packages/forge/test/`, and a path-allowlist enforcer (a script that, given a
-   diff, fails if it touches any TCB path). Wire both into `bun run check`. *This is
-   the highest-value, lowest-risk first step and is itself a normal checkpointed
-   iteration — it hardens the engine even if F7 never proceeds.*
+   yet). BUILT on `feat/f7-phase0`.** The golden-snapshot suite
+   (`packages/forge/test/golden.test.ts` + `golden/*.json`) and the bad-spec guard
+   corpus (`guard-corpus.test.ts`) run in `bun test` (= `bun run check`), and the
+   path-allowlist enforcer is a pure module (`packages/forge/src/boundary.ts`,
+   default-deny) plus a CLI (`scripts/check-self-edit-boundary.ts`). **Refinement
+   to "wire into `bun run check`":** only the corpora and the enforcer's *unit
+   tests* gate the general `check` — the enforcer **CLI** does NOT, because humans
+   edit the TCB legitimately every day; it applies only to an *automated* self-edit
+   proposal (the Phase-1 proposer flow). *This was the highest-value, lowest-risk
+   first step and hardens the engine even if F7 never proceeds.*
 2. **Phase 1 — Tier-A refinement, human-driven.** A `forge-improver` agent +
    worktree flow that proposes a behavior-preserving refinement, gated by Phase 0's
    corpus, surfaced as a PR. No automatic trigger yet — a human asks for a specific

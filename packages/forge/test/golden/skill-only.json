@@ -1,0 +1,6 @@
+{
+  ".claude-plugin/plugin.json": "{\n  \"name\": \"golden-skill\",\n  \"version\": \"0.0.1\",\n  \"description\": \"A skill-only plugin.\",\n  \"license\": \"MIT\",\n  \"keywords\": [\n    \"objectcore\",\n    \"demo\"\n  ]\n}\n",
+  "evals/activation.json": "{\n  \"cases\": [\n    {\n      \"prompt\": \"do the thing\",\n      \"expect\": \"do-thing\"\n    },\n    {\n      \"prompt\": \"unrelated\",\n      \"expect\": null\n    }\n  ]\n}\n",
+  "evals/output.json": "{\n  \"expectEntry\": {\n    \"version\": \"0.0.1\"\n  }\n}\n",
+  "skills/do-thing/SKILL.md": "---\nname: do-thing\ndescription: Use when the user wants the thing done.\n---\n# Do Thing\n\n<!-- forge:todo --> Replace this stub with the real skill instructions — what to do,\nthe steps, the output format, and any reference to load. The frontmatter `description`\nis the trigger surface (it decides firing); this body is what runs once the skill fires.\n"
+}

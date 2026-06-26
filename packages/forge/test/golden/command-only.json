@@ -1,0 +1,5 @@
+{
+  ".claude-plugin/plugin.json": "{\n  \"name\": \"golden-command\",\n  \"version\": \"0.0.1\",\n  \"description\": \"A command-only plugin.\",\n  \"license\": \"MIT\"\n}\n",
+  "commands/run-it.md": "---\ndescription: Run the thing.\n---\n# /run-it\n\nRun the thing.\n",
+  "evals/output.json": "{\n  \"expectEntry\": {\n    \"version\": \"0.0.1\"\n  }\n}\n"
+}

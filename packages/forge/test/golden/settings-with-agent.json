@@ -1,0 +1,7 @@
+{
+  ".claude-plugin/plugin.json": "{\n  \"name\": \"golden-settings\",\n  \"version\": \"0.0.1\",\n  \"description\": \"An agent plus a settings.agent reference.\",\n  \"license\": \"MIT\"\n}\n",
+  "agents/main-agent.md": "---\nname: main-agent\ndescription: Delegate when running as the main thread.\n---\n# Main Agent\n\n<!-- forge:todo --> Replace this stub with the agent's system prompt — its role, when\nit is delegated to, the steps it takes, and the exact shape of what it returns.\n",
+  "evals/delegation.json": "{\n  \"cases\": [\n    {\n      \"prompt\": \"run as main\",\n      \"expect\": \"main-agent\"\n    },\n    {\n      \"prompt\": \"unrelated\",\n      \"expect\": null\n    }\n  ]\n}\n",
+  "evals/output.json": "{\n  \"expectEntry\": {\n    \"version\": \"0.0.1\"\n  }\n}\n",
+  "settings.json": "{\n  \"agent\": \"main-agent\"\n}\n"
+}
