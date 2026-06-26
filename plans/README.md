@@ -21,7 +21,8 @@ honor its STOP conditions, and update your row below when done.
 | 007 | Forge prose — trigger-surface recipe, case budget, category vocab, real body | P3 | S | 006 | DONE (merged to main `5d449d3`) |
 | 008 | **Epic: foundational agentic pieces** — KB + hooks/subagents/MCP primitives + EDDOps eval loop (build-loop backlog) | P1 | L (multi-item) | — | F1–F6 **DONE/merged**; **F7 design + Phases 0–2 + OQ4 measurement primitive BUILT/merged** (PR #14 + `feat/oq4-eval-score`). Catalog 12 plugins. Worklist in `008-foundational-agentic-roadmap.md` |
 | 009 | **F7** — recursive self-improvement of the forge engine, strictly eval-gated (design + Phases 0–2 + OQ4) | P1 | S (design) + M×3 | 008/F4 | **Phases 0–2 BUILT/merged** (PR #14): default-deny boundary, golden + guard meta-eval corpus, `forge-improver` proposer + admission pipeline (`forge:improve`), declared-improvability backlog (`forge:suggest`). **OQ4 BUILT** (both halves): single-step graded score (`score.ts` → `dist/eval-score.json`) + non-regression admission (`feat/oq4-eval-score`), and longitudinal history (`history.ts` + `metrics/eval-history.jsonl` + `eval:record`/`eval:trend`, `feat/oq4-score-history`). Remaining frontier: CI auto-recording + Phase 3 autonomous executor. |
-| 010 | Telemetry `POST /v1/events` — the first registry write path (D4 half 1) | P2 | S–M | Stage 3 | BUILT on `feat/telemetry-events`: `EventSink` port + pure `parseEvent` (registry-core), `LibSqlEventStore`/`InMemoryEventStore` + append-only `events` table (registry-db), sink+token-gated route wired in `prod.ts`. Additive, never touches `deriveCatalog`. OIDC publish (D4 half 2) still deferred. |
+| 010 | Telemetry `POST /v1/events` + authenticated `/v1/events/stats` (D4 half 1) | P2 | S–M | Stage 3 | BUILT on `feat/telemetry-events`: `EventSink` port + pure `parseEvent`/`aggregateEvents` (registry-core), `LibSqlEventStore`/`InMemoryEventStore` + append-only `events` table (registry-db), sink+token-gated routes wired in `prod.ts`. Additive, never touches `deriveCatalog`. |
+| 011 | OIDC publish `POST /v1/plugins` — self-service publishing (D4 half 2) | P2 | M | Stage 3, Stage 2 provenance gate | BUILT on `feat/telemetry-events` (same PR as 010): `OidcVerifier` port (`Mock` + real `GitHubOidcVerifier` RS256/JWKS via Web Crypto, no dep), pure `authorizePublish`/`parsePublish`, provenance gate re-enforced (`requiresProvenance`), writes via `CatalogStore` port. Inert until `OBJECTCORE_OIDC_AUDIENCE` set. |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
@@ -109,13 +110,13 @@ needs `ANTHROPIC_API_KEY` (out of the local/agent reach). To finish:
 
 ## Deferred (no plan written — matches the maintainer's "build before ops" call)
 
-- **D4 — telemetry (`/v1/events`) + OIDC publish (`POST /v1/plugins`)**: need
-  write paths, new tables, and auth; most valuable after a deployed host with
-  traffic. **Telemetry half BUILT** as **plan 010** (the host is live on Fly now) —
-  `POST /v1/events`, the first registry write path. **OIDC publish half still
-  deferred** (heavier: GitHub-Actions OIDC verification + re-enforcing the provenance
-  gate over HTTP + mutating the served catalog via `RegistryDbSink`); revisit when
-  self-service publishing is wanted.
+- **D4 — telemetry (`/v1/events`) + OIDC publish (`POST /v1/plugins`)**: **BOTH BUILT**
+  (the host is live on Fly). Telemetry = **plan 010** (`POST /v1/events` + authenticated
+  `/v1/events/stats`). OIDC publish = **plan 011** (`POST /v1/plugins`: GitHub-Actions OIDC
+  verification via Web Crypto + re-enforcing the provenance gate + writing through the
+  `CatalogStore` port; inert until `OBJECTCORE_OIDC_AUDIENCE` set). The D-series of designed
+  registry routes is now complete. Remaining publisher-side work: a GitHub Actions workflow
+  that mints the OIDC token and calls the route (noted in plan 011's follow-ups).
 - **C3 — `prod.ts` never runs `migrate()`; shallow `/healthz`**: PROMOTED to a
   plan — now **plan 004** (P1), because the Turso + Fly secrets are set as of
   2026-06-25 and deploy is armed. No longer deferred.

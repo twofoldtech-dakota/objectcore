@@ -12,7 +12,7 @@
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
 import { Hono } from "hono";
-import { RegistryDbSource } from "@objectcore/registry-core";
+import { GitHubOidcVerifier, RegistryDbSource } from "@objectcore/registry-core";
 import { LibSqlCatalogStore, LibSqlEventStore } from "@objectcore/registry-db";
 import { createApp } from "./app";
 
@@ -48,11 +48,33 @@ async function dbApp(): Promise<Hono> {
     return { source: src, derive: async () => ({ ...base, ...(await src.pins()) }) };
   };
   const stable = sourceFor(channel);
-  console.log(`ObjectCore registry (prod/db) -> :${port} [channel=${channel}, channels=${[...allowed].join(",")}]`);
+
+  // Self-service publish — inert until armed. Enabled only when an OIDC audience is
+  // configured; otherwise POST /v1/plugins is absent (the release-CI git path still
+  // ingests via registry:ingest regardless). issuer defaults to GitHub Actions.
+  const audience = process.env.OBJECTCORE_OIDC_AUDIENCE;
+  const issuer = process.env.OBJECTCORE_OIDC_ISSUER ?? "https://token.actions.githubusercontent.com";
+  const publish = audience
+    ? {
+        verifier: new GitHubOidcVerifier(issuer),
+        policy: {
+          issuer,
+          audience,
+          allowedRepositories: (process.env.OBJECTCORE_PUBLISH_REPOS ?? "")
+            .split(",").map((s) => s.trim()).filter(Boolean),
+        },
+        store,
+      }
+    : undefined;
+
+  console.log(
+    `ObjectCore registry (prod/db) -> :${port} [channel=${channel}, channels=${[...allowed].join(",")}, publish=${publish ? "on" : "off"}]`,
+  );
   return createApp({
     ...stable,
     events,
     eventsToken: process.env.OBJECTCORE_EVENTS_TOKEN, // unset -> open ingestion
+    publish,
     ready: async () => {
       await store.listLatest(channel); // throws if the DB is unreachable / schema missing
       return true;

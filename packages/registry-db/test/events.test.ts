@@ -20,3 +20,16 @@ test("InMemoryEventStore.recent honours the limit", async () => {
   for (let i = 0; i < 5; i++) await store.record({ type: "view", plugin: `p${i}` });
   expect((await store.recent(2)).length).toBe(2);
 });
+
+test("InMemoryEventStore.stats aggregates by type and plugin", async () => {
+  const store = new InMemoryEventStore(() => "2026-01-01T00:00:00Z");
+  await store.record({ type: "install", plugin: "hello-objectcore" });
+  await store.record({ type: "install", plugin: "plugin-forge" });
+  await store.record({ type: "activate", plugin: "hello-objectcore" });
+  await store.record({ type: "search" });
+  expect(await store.stats()).toEqual({
+    total: 4,
+    byType: { install: 2, activate: 1, search: 1 },
+    byPlugin: { "hello-objectcore": 2, "plugin-forge": 1 },
+  });
+});

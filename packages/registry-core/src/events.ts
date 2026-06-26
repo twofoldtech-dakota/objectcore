@@ -28,13 +28,33 @@ export interface StoredEvent extends TelemetryEvent {
   at: string;
 }
 
+/** Aggregate counts over stored events — the body of the authenticated stats route. */
+export interface EventStats {
+  total: number;
+  byType: Record<string, number>;
+  byPlugin: Record<string, number>;
+}
+
+/** Pure aggregation, mirrored by the store's SQL GROUP BY. Used by the in-memory
+ *  adapter and directly unit-tested. */
+export function aggregateEvents(events: StoredEvent[]): EventStats {
+  const byType: Record<string, number> = {};
+  const byPlugin: Record<string, number> = {};
+  for (const e of events) {
+    byType[e.type] = (byType[e.type] ?? 0) + 1;
+    if (e.plugin) byPlugin[e.plugin] = (byPlugin[e.plugin] ?? 0) + 1;
+  }
+  return { total: events.length, byType, byPlugin };
+}
+
 /** The telemetry write port. Concrete adapters (libSQL/Turso, in-memory) live in
  *  @objectcore/registry-db so this core stays dependency-free. `record` is the
- *  operated path; `recent`/`count` back tests and a future authenticated stats route. */
+ *  operated path; `recent`/`count`/`stats` back tests and the authenticated stats route. */
 export interface EventSink {
   record(event: TelemetryEvent): Promise<void>;
   recent(limit?: number): Promise<StoredEvent[]>;
   count(): Promise<number>;
+  stats(): Promise<EventStats>;
 }
 
 export type EventParseResult =

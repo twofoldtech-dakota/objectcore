@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseEvent } from "../src/events";
+import { parseEvent, aggregateEvents, type StoredEvent } from "../src/events";
 
 test("parseEvent accepts a well-formed event (type + optional plugin/channel/meta)", () => {
   const r = parseEvent({
@@ -51,4 +51,18 @@ test("parseEvent rejects non-primitive or oversized meta", () => {
   expect(parseEvent({ type: "install", meta: { big: "x".repeat(600) } }).ok).toBe(false);
   const tooMany = Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`k${i}`, i]));
   expect(parseEvent({ type: "install", meta: tooMany }).ok).toBe(false);
+});
+
+test("aggregateEvents counts by type and by plugin (ignoring pluginless events)", () => {
+  const events: StoredEvent[] = [
+    { type: "install", plugin: "alpha-plugin", at: "t" },
+    { type: "install", plugin: "beta-plugin", at: "t" },
+    { type: "activate", plugin: "alpha-plugin", at: "t" },
+    { type: "search", at: "t" }, // no plugin
+  ];
+  expect(aggregateEvents(events)).toEqual({
+    total: 4,
+    byType: { install: 2, activate: 1, search: 1 },
+    byPlugin: { "alpha-plugin": 2, "beta-plugin": 1 },
+  });
 });

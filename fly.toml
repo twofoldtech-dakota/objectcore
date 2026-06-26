@@ -18,6 +18,9 @@ primary_region = "iad"
   OBJECTCORE_SOURCE = "db"
   OBJECTCORE_CHANNEL = "stable"
   PORT = "8080"
+  # Self-service publish (POST /v1/plugins) is INERT until OBJECTCORE_OIDC_AUDIENCE is
+  # set (as a secret). When armed it also reads OBJECTCORE_OIDC_ISSUER (default GitHub
+  # Actions) and OBJECTCORE_PUBLISH_REPOS (comma-separated owner/repo allowlist).
 
 [http_service]
   internal_port = 8080

@@ -6,7 +6,8 @@ import {
   type MarketplaceJson,
   type WorkspacePlugin,
 } from "@objectcore/registry-core";
-import { InMemoryEventStore } from "@objectcore/registry-db";
+import { MockOidcVerifier, type OidcClaims, type PublishPolicy } from "@objectcore/registry-core";
+import { InMemoryEventStore, InMemoryCatalogStore } from "@objectcore/registry-db";
 import { createApp } from "../src/app";
 
 function postEvent(app: ReturnType<typeof createApp>, body: unknown, headers: Record<string, string> = {}) {
@@ -179,4 +180,103 @@ test("the marketplace seam still serves with a telemetry sink wired", async () =
   const app = createApp({ source: new MockSource(fixture), derive: base, events: new InMemoryEventStore() });
   const catalog = (await (await app.request("/v1/marketplace.json")).json()) as MarketplaceJson;
   expect(catalog.plugins.map((p) => p.name)).toEqual(["alpha-plugin", "beta-plugin"]);
+});
+
+test("GET /v1/events/stats returns aggregates with the token, 401 without/with no token", async () => {
+  const events = new InMemoryEventStore(() => "2026-01-01T00:00:00Z");
+  await events.record({ type: "install", plugin: "alpha-plugin" });
+  await events.record({ type: "activate", plugin: "alpha-plugin" });
+
+  // no token configured -> the read is closed
+  const closed = createApp({ source: new MockSource(fixture), derive: base, events });
+  expect((await closed.request("/v1/events/stats")).status).toBe(401);
+
+  const app = createApp({ source: new MockSource(fixture), derive: base, events, eventsToken: "s3cret" });
+  expect((await app.request("/v1/events/stats")).status).toBe(401); // missing auth
+  const ok = await app.request("/v1/events/stats", { headers: { authorization: "Bearer s3cret" } });
+  expect(ok.status).toBe(200);
+  expect(await ok.json()).toEqual({
+    total: 2,
+    byType: { install: 1, activate: 1 },
+    byPlugin: { "alpha-plugin": 2 },
+  });
+});
+
+// ── OIDC publish (POST /v1/plugins) ────────────────────────────────────────────
+
+const policy: PublishPolicy = {
+  issuer: "https://token.actions.githubusercontent.com",
+  audience: "objectcore-registry",
+  allowedRepositories: ["twofoldtech-dakota/objectcore"],
+};
+const goodClaims: OidcClaims = { iss: policy.issuer, aud: policy.audience, repository: "twofoldtech-dakota/objectcore" };
+const publishBody = {
+  manifest: { name: "hello-objectcore", version: "0.1.0", description: "Demo", keywords: ["demo"] },
+  relDir: "hello-objectcore",
+  version: "0.1.0",
+  sha: "abc1234",
+  repoUrl: "https://github.com/twofoldtech-dakota/objectcore",
+};
+
+function publishApp(store = new InMemoryCatalogStore(), fixture: Record<string, OidcClaims> = { "tok-ok": goodClaims }) {
+  const app = createApp({
+    source: new MockSource([]),
+    derive: base,
+    publish: { verifier: new MockOidcVerifier(fixture), policy, store },
+  });
+  return { app, store };
+}
+
+function post(app: ReturnType<typeof createApp>, body: unknown, token?: string) {
+  return app.request("/v1/plugins", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  });
+}
+
+test("POST /v1/plugins publishes a valid request (201) and writes it to the store", async () => {
+  const { app, store } = publishApp();
+  const res = await post(app, publishBody, "tok-ok");
+  expect(res.status).toBe(201);
+  expect(await res.json()).toMatchObject({ ok: true, name: "hello-objectcore", version: "0.1.0", ref: "hello-objectcore--v0.1.0" });
+  const rows = await store.listLatest("stable");
+  expect(rows.map((r) => r.manifest.name)).toEqual(["hello-objectcore"]);
+  expect(rows[0].ref).toBe("hello-objectcore--v0.1.0");
+});
+
+test("POST /v1/plugins is absent (404) when publish is not configured", async () => {
+  const app = createApp({ source: new MockSource([]), derive: base });
+  expect((await post(app, publishBody, "tok-ok")).status).toBe(404);
+});
+
+test("POST /v1/plugins rejects a missing/invalid token (401)", async () => {
+  const { app } = publishApp();
+  expect((await post(app, publishBody)).status).toBe(401); // no bearer
+  expect((await post(app, publishBody, "bogus")).status).toBe(401); // verifier throws
+});
+
+test("POST /v1/plugins rejects a token from a disallowed repo (403)", async () => {
+  const { app } = publishApp(new InMemoryCatalogStore(), {
+    "tok-fork": { ...goodClaims, repository: "attacker/fork" },
+  });
+  expect((await post(app, publishBody, "tok-fork")).status).toBe(403);
+});
+
+test("POST /v1/plugins rejects a malformed body (400)", async () => {
+  const { app, store } = publishApp();
+  expect((await post(app, { ...publishBody, version: "nope" }, "tok-ok")).status).toBe(400);
+  expect((await store.listLatest("stable")).length).toBe(0);
+});
+
+test("POST /v1/plugins re-enforces the provenance gate (422 without attestation, 201 with)", async () => {
+  const { app, store } = publishApp();
+  const mcpBody = { ...publishBody, manifest: { ...publishBody.manifest, mcpServers: ".mcp.json" } };
+
+  expect((await post(app, mcpBody, "tok-ok")).status).toBe(422); // MCP bundle, no provenance
+  expect((await store.listLatest("stable")).length).toBe(0);
+
+  const attested = await post(app, { ...mcpBody, provenance: { ref: "att://x" } }, "tok-ok");
+  expect(attested.status).toBe(201);
+  expect((await store.listLatest("stable"))[0].provenance).toEqual({ ref: "att://x" });
 });

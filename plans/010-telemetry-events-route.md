@@ -51,26 +51,31 @@ a thin HTTP adapter over a pure validator.
   same DB, migrated on boot, injected as `events` with the env token. The `file`
   break-glass app is unchanged (verbatim serve).
 
+## Follow-up built in the same PR
+
+- **Authenticated `GET /v1/events/stats`** — a pure `aggregateEvents` (registry-core)
+  + `EventSink.stats()` (SQL `GROUP BY` in libSQL; in-memory mirror), returning
+  `{ total, byType, byPlugin }`. **Always token-gated** (requires `OBJECTCORE_EVENTS_TOKEN`
+  set AND matched — an unauthenticated telemetry read would be a data-exposure surface).
+  This makes the ingested data usable without opening it.
+
 ## What this iteration deliberately does NOT build
 
-- **No public read route.** Ingestion only. The port's `recent`/`count` back tests
-  and a *future authenticated* `GET /v1/events/stats` — an unauthenticated telemetry
-  read would be a data-exposure surface, so it waits for the auth story.
 - **No rate limiting / abuse controls** beyond the optional shared secret + the
   meta-size bounds. Note for a follow-up if traffic warrants.
-- **OIDC publish** (`POST /v1/plugins`) — its own plan.
+- **OIDC publish** (`POST /v1/plugins`) — its own plan (**011**), built in the same PR.
 
 ## Done criteria
 
 - [x] `EventSink` port + `parseEvent` in registry-core; exported from its index.
 - [x] `LibSqlEventStore` + `InMemoryEventStore` + `EVENTS_SCHEMA_SQL`; exported from registry-db.
 - [x] `POST /v1/events` in `createApp` (sink-gated, token-gated, 202/400/401/404); wired in `prod.ts`.
-- [x] Tests: pure validator (registry-core), store round-trip (registry-db), route + token + absent-sink (registry-server).
+- [x] Authenticated `GET /v1/events/stats` (always token-gated) + `aggregateEvents`/`stats()`.
+- [x] Tests: pure validator + aggregate (registry-core), store round-trip + stats (registry-db), route + token + absent-sink + stats (registry-server).
 - [x] `bun run check` green; `marketplace.json` byte-unchanged (no derivation touched).
 - [ ] Reviewed + merged (the checkpoint).
 
 ## Follow-ups (not this plan)
 
-- OIDC publish `POST /v1/plugins` (the D4 other half) — auth + provenance-gate re-enforcement + `RegistryDbSink`.
-- Authenticated `GET /v1/events/stats` once the read-auth story is decided.
 - Per-channel telemetry keying (noted in plan 001's maintenance notes).
+- Rate limiting if open ingestion attracts abuse.

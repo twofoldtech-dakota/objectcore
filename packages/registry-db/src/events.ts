@@ -5,7 +5,14 @@
 // wires either behind `POST /v1/events`.
 
 import { createClient, type Client, type Row } from "@libsql/client";
-import type { EventSink, EventType, StoredEvent, TelemetryEvent } from "@objectcore/registry-core";
+import {
+  aggregateEvents,
+  type EventSink,
+  type EventStats,
+  type EventType,
+  type StoredEvent,
+  type TelemetryEvent,
+} from "@objectcore/registry-core";
 import { EVENTS_SCHEMA_SQL } from "./schema";
 
 function rowToEvent(r: Row): StoredEvent {
@@ -51,6 +58,19 @@ export class LibSqlEventStore implements EventSink {
     const rs = await this.client.execute(`SELECT COUNT(*) AS n FROM events`);
     return Number(rs.rows[0]?.n ?? 0);
   }
+
+  async stats(): Promise<EventStats> {
+    const [total, byTypeRs, byPluginRs] = await Promise.all([
+      this.count(),
+      this.client.execute(`SELECT type, COUNT(*) AS n FROM events GROUP BY type`),
+      this.client.execute(`SELECT plugin, COUNT(*) AS n FROM events WHERE plugin IS NOT NULL GROUP BY plugin`),
+    ]);
+    const byType: Record<string, number> = {};
+    for (const r of byTypeRs.rows) byType[String(r.type)] = Number(r.n);
+    const byPlugin: Record<string, number> = {};
+    for (const r of byPluginRs.rows) byPlugin[String(r.plugin)] = Number(r.n);
+    return { total, byType, byPlugin };
+  }
 }
 
 /** In-memory `EventSink` for tests / local dev (no DB). The clock is injectable so
@@ -70,5 +90,9 @@ export class InMemoryEventStore implements EventSink {
 
   async count(): Promise<number> {
     return this.events.length;
+  }
+
+  async stats(): Promise<EventStats> {
+    return aggregateEvents(this.events);
   }
 }
