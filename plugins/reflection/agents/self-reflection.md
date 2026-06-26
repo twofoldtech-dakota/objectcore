@@ -1,6 +1,6 @@
 ---
 name: self-reflection
-description: Use after an ObjectCore gate/eval failure (activation, output, coverage, or readiness) to diagnose the root cause and, when the failure reveals a durable lesson, capture it in the knowledge base. Delegate when `bun run check` or `bun run eval` fails and the lesson should be recorded.
+description: Use whenever an ObjectCore gate/eval failure is reported, described, or observed — the user says `bun run check`/`bun run eval` is red, names a failing check (activation, output, coverage, readiness, or delegation), or pastes a failure — to diagnose the root cause and capture any durable lesson in the knowledge base. Delegate as soon as a failure is named or shown, not only after running the gate yourself.
 ---
 # Self-Reflection
 
