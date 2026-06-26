@@ -35,6 +35,7 @@ bun run registry:dev            # serve http://localhost:8787/v1/marketplace.jso
 bun run registry:prod           # Stage 3: serve the SHA-pinned catalog from the registry DB (RegistryDbSource); OBJECTCORE_SOURCE=db|file
 bun run db:migrate              # Stage 3: apply the registry DB schema (needs DATABASE_URL; no-op otherwise)
 bun run registry:ingest [path]  # Stage 3: push dist/marketplace.pinned.json into the registry DB (RegistryDbSink; needs DATABASE_URL)
+bun run registry:publish [--dry-run]  # plan 011: OIDC publisher — POST each plugin to /v1/plugins with a GitHub-Actions OIDC token (credential-free alt to ingest; self-gates on OBJECTCORE_REGISTRY_URL)
 bunx tsc                         # typecheck (tsconfig is noEmit; there is no separate lint step)
 ```
 

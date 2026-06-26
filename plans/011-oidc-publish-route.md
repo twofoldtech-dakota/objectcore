@@ -69,8 +69,23 @@ The same split as `deriveCatalog`'s sources/sinks and the eval `Judge`:
 - [x] `bun run check` green; `marketplace.json` byte-unchanged.
 - [ ] Reviewed + merged (the checkpoint).
 
+## Publisher side — BUILT (the dogfood)
+
+`scripts/registry-publish.ts` (`bun run registry:publish`) is the HTTP counterpart of
+`registry:ingest`: it reconstructs each `PublishRequest` from the workspace (raw manifest
++ relDir + release-commit sha + repoUrl + an MCP-bundle scan, like `release:publish`),
+**mints a GitHub Actions OIDC token scoped to `OBJECTCORE_OIDC_AUDIENCE`** (via the
+`ACTIONS_ID_TOKEN_REQUEST_*` env, or `OBJECTCORE_OIDC_TOKEN` for local testing), and POSTs
+each to `${OBJECTCORE_REGISTRY_URL}/v1/plugins`. It **self-gates green** (the
+`registry:ingest` posture): a no-op unless `OBJECTCORE_REGISTRY_URL` + an OIDC token are
+present. `--dry-run` prints the plan without minting/posting. `release.yml` runs it after
+attestation, **inert until the repo variable `OBJECTCORE_REGISTRY_URL` is set** — the
+credential-free alternative to (or, idempotently, alongside) the direct DB ingest. When
+attested it attaches a provenance reference (incl. the `attestation-url`) so MCP-bundling
+plugins clear the route's provenance gate.
+
 ## Follow-ups (not this plan)
 
-- A GitHub Actions workflow that mints the OIDC token and calls the route (the publisher side).
+- Verify the attestation bundle server-side (the route currently *stores* the provenance reference; it does not validate it).
 - A yank/deprecate route once immutability needs an escape hatch.
 - Rate limiting / per-repo quotas if abused.

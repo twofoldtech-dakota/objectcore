@@ -98,6 +98,7 @@ jobs:
 
       - name: Attest pinned catalog (build provenance)
         if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != ''
+        id: attest
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/marketplace.pinned.json
@@ -118,3 +119,18 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      # Plan 011: the OIDC publisher path — dogfoods POST /v1/plugins, the
+      # credential-free alternative to the direct DB ingest above (no DATABASE_URL,
+      # only id-token: write). INERT until the repo variable OBJECTCORE_REGISTRY_URL
+      # is set; arm it to publish over HTTP instead of (or alongside — upsert is
+      # idempotent) the direct ingest. The job already grants id-token: write; the CLI
+      # mints a token scoped to OBJECTCORE_OIDC_AUDIENCE and posts each plugin.
+      - name: Publish to the registry over OIDC (POST /v1/plugins)
+        if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != '' && vars.OBJECTCORE_REGISTRY_URL != ''
+        run: bun run registry:publish
+        env:
+          OBJECTCORE_REGISTRY_URL: ${{ vars.OBJECTCORE_REGISTRY_URL }}
+          OBJECTCORE_OIDC_AUDIENCE: ${{ vars.OBJECTCORE_OIDC_AUDIENCE }}
+          OBJECTCORE_ATTESTED: "1"
+          OBJECTCORE_PROVENANCE_URL: ${{ steps.attest.outputs.attestation-url }}
