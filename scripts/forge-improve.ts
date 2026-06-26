@@ -6,18 +6,20 @@
 // `forge-improver` agent proposed a refinement to packages/forge/src/scaffold.ts.
 //
 // Usage:
-//   bun run forge:improve                # assess working-tree changes (vs HEAD)
-//   bun run forge:improve --base <ref>    # assess committed changes <ref>..HEAD
+//   bun run forge:improve                       # assess working-tree changes (vs HEAD)
+//   bun run forge:improve --base <ref>           # assess committed changes <ref>..HEAD
+//   bun run forge:improve --baseline <score.json> # also require non-regression vs an OQ4
+//                                                 #   baseline (a dist/eval-score.json
+//                                                 #   captured BEFORE the edit)
 //
-// Exit 0 = ADMITTED (boundary clean + gate green; a human still reviews/merges).
-// Exit 1 = REJECTED. Exit 2 = usage error.
+// Exit 0 = ADMITTED (boundary clean + gate green + no score regression). Exit 1 =
+// REJECTED. Exit 2 = usage error. A human still reviews/merges (plan 009, Pillar 4).
 
 import { execFileSync } from "node:child_process";
-import {
-  decideAdmission,
-  findBoundaryViolations,
-  formatAdmission,
-} from "@objectcore/forge";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { decideAdmission, findBoundaryViolations, formatAdmission } from "@objectcore/forge";
+import { compareScores, type EvalScore, type ScoreDelta } from "@objectcore/eval";
 
 function workingChanges(): string[] {
   // Porcelain v1: 2 status chars + a space, then the path (untracked => "?? path").
@@ -35,19 +37,22 @@ function committedChanges(base: string): string[] {
   return out.split("\n").map((l) => l.trim()).filter(Boolean);
 }
 
-const argv = process.argv.slice(2);
-const baseIdx = argv.indexOf("--base");
-let changedPaths: string[];
-if (baseIdx !== -1) {
-  const base = argv[baseIdx + 1];
-  if (!base) {
-    console.error("--base needs a ref, e.g. --base main");
+function flagValue(argv: string[], name: string): string | undefined {
+  const i = argv.indexOf(name);
+  if (i === -1) return undefined;
+  const v = argv[i + 1];
+  if (!v || v.startsWith("--")) {
+    console.error(`${name} needs a value`);
     process.exit(2);
   }
-  changedPaths = committedChanges(base);
-} else {
-  changedPaths = workingChanges();
+  return v;
 }
+
+const root = join(import.meta.dir, "..");
+const argv = process.argv.slice(2);
+const base = flagValue(argv, "--base");
+const baselinePath = flagValue(argv, "--baseline");
+const changedPaths = base ? committedChanges(base) : workingChanges();
 
 if (!changedPaths.length) {
   console.log("No changed paths — nothing to admit.");
@@ -71,6 +76,23 @@ try {
   gateGreen = false;
 }
 
-const result = decideAdmission({ changedPaths, gateGreen });
+// OQ4: when a pre-edit baseline score is supplied, require the graded health not to
+// regress (the gate just wrote the post-edit score to dist/eval-score.json).
+let scoreDelta: ScoreDelta | undefined;
+if (gateGreen && baselinePath) {
+  try {
+    const baseline = JSON.parse(readFileSync(baselinePath, "utf8")) as EvalScore;
+    const post = JSON.parse(
+      readFileSync(join(root, "dist", "eval-score.json"), "utf8"),
+    ) as EvalScore;
+    scoreDelta = compareScores(baseline, post);
+  } catch (e) {
+    console.error(
+      `\n(could not compute score delta: ${(e as Error).message}) — proceeding without it`,
+    );
+  }
+}
+
+const result = decideAdmission({ changedPaths, gateGreen, scoreDelta });
 console.log("\n" + formatAdmission(result));
 process.exit(result.admitted ? 0 : 1);

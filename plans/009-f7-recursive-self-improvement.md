@@ -189,12 +189,22 @@ deliberately narrow and widens only as trust is earned.
    `forge:todo` stub marker), and a pure scanner (`packages/forge/src/suggest.ts` +
    `bun run forge:suggest`) harvests them into a deterministic, gate-safe backlog the
    loop reads before delegating `forge-improver`. This turns Phase 1 (a human notices)
-   into "the system surfaces its own candidates." **Still deferred:** a *learned* signal
-   (open question 4 — do refinements measurably raise later eval pass rates?) and
-   *autonomous execution* (below). The EDDOps evidence file stays the wrong trigger for a
-   *generator* refinement — its failures/near-misses are about *plugin trigger surfaces*
-   (`self-reflection`'s lesson domain), not `scaffold.ts` quality. A *declared* backlog is
-   honest about being a seeded worklist; it does not pretend to be learned.
+   into "the system surfaces its own candidates." The EDDOps evidence file stays the wrong
+   trigger for a *generator* refinement — its failures/near-misses are about *plugin
+   trigger surfaces* (`self-reflection`'s lesson domain), not `scaffold.ts` quality. A
+   *declared* backlog is honest about being a seeded worklist; it does not pretend to be
+   learned.
+   - **OQ4 measurement primitive — BUILT on `feat/oq4-eval-score`.** The honest precondition
+     for trusting *any* refinement (or lesson) is a *measurable* "did it help?", not just
+     "did it still pass?". `packages/eval/src/score.ts` (`scoreReport` → a graded
+     `EvalScore`: passed/failed/**nearMisses**/**confidenceMargin**/composite `health`;
+     `compareScores` → `improved | unchanged | regressed`) turns the binary gate into a
+     graded, comparable signal, written each run to `dist/eval-score.json`. The admission
+     pipeline now enforces **non-regression**: `bun run forge:improve --baseline <score>`
+     rejects a self-edit that lowers `health` (a new fragile green, thinner margin) even
+     when the gate is still green — the 4th admission check. **Still deferred:** the
+     *longitudinal* half of OQ4 (do captured lessons raise pass rates across *many* runs?)
+     needs persisted score history (telemetry), and the autonomous executor (below).
 4. **Phase 3 — autonomous execution + widening autonomy (RESEARCH; designed, not
    built; see the sketch below).** Widen the optimizer's reach only as the corpus and a
    real quality signal prove it can be trusted, and only for Tier A. **Tier B stays
@@ -223,10 +233,13 @@ human kicking it off:
 - Pillar 4 already forbids self-merge: a human reviews **every** engine self-edit. So the
   autonomous executor's gain over human-initiated Phase 1 is *convenience, not capability* —
   it does not change what the system is allowed to do, only who presses start.
-- The honest precondition is **open question 4**: until a learned signal shows that a given
-  refinement actually *helps* (not merely *passes*), auto-proposing is churn. The safe,
-  testable bricks are built; turning on the thin, key-gated orchestration should wait for
-  that signal.
+- The honest precondition is **open question 4**: until a signal shows that a given
+  refinement actually *helps* (not merely *passes*), auto-proposing is churn. The
+  *measurement primitive* is now built (the graded health score + non-regression admission),
+  which gives the executor a verdict to act on; what is still missing is the *longitudinal*
+  signal (does a captured lesson raise pass rates over time?) and the willingness to let it
+  run unattended. The safe, testable bricks are built; turning on the thin, key-gated
+  orchestration should wait for that longitudinal signal.
 
 ## This plan's deliverable & done criteria
 
@@ -256,10 +269,13 @@ ALL must hold for the *design* to be done:
   and blessed** — capturing an unreviewed decision as factory memory would be
   premature. Write it (via `bun run kb:add`) at merge, linking
   `[[factory-kb-and-loop]]`.
-- Open questions 4 ("a measurable KB-quality signal — do stored lessons raise later
-  eval pass rates?") and 5 are siblings: a trustworthy Tier-A optimizer wants a
-  signal that its refinements actually *help*, not merely *pass*. OQ4 is the
-  natural de-risking stepping stone to fund before Phase 1.
+- Open questions 4 ("a measurable quality signal — do refinements/lessons raise later
+  eval pass rates?") and 5 are siblings: a trustworthy Tier-A optimizer wants a signal
+  that its refinements actually *help*, not merely *pass*. **OQ4's measurement primitive
+  is now built** (`score.ts`: the graded `EvalScore` + `compareScores`, emitted to
+  `dist/eval-score.json`, enforced as the admission pipeline's non-regression check). The
+  remaining, *longitudinal* half — does a captured lesson raise pass rates across many
+  runs? — needs persisted score history and is the next OQ4 increment.
 - Keep this design and `scaffold.ts` in sync: if a future hand-authored primitive
   lands (Tier B), add its golden + guard cases to Phase 0's corpus in the same PR,
   so the meta-eval never lags the engine.

@@ -1,8 +1,43 @@
 import { test, expect } from "bun:test";
 import { ADMISSION_CHECKS, decideAdmission, formatAdmission } from "../src/improve";
+import type { ScoreDelta } from "@objectcore/eval";
 
-test("ADMISSION_CHECKS enumerates the three ordered gates", () => {
-  expect(ADMISSION_CHECKS.map((c) => c.id)).toEqual(["boundary", "meta-eval", "full-gate"]);
+const delta = (verdict: ScoreDelta["verdict"]): ScoreDelta => ({
+  verdict,
+  healthDelta: verdict === "regressed" ? -0.1 : verdict === "improved" ? 0.1 : 0,
+  failedDelta: 0,
+  nearMissDelta: 0,
+  marginDelta: null,
+});
+
+test("ADMISSION_CHECKS enumerates the four ordered gates", () => {
+  expect(ADMISSION_CHECKS.map((c) => c.id)).toEqual([
+    "boundary",
+    "meta-eval",
+    "full-gate",
+    "no-regression",
+  ]);
+});
+
+test("a score regression rejects even when boundary-clean and gate-green", () => {
+  const r = decideAdmission({
+    changedPaths: ["packages/forge/src/scaffold.ts"],
+    gateGreen: true,
+    scoreDelta: delta("regressed"),
+  });
+  expect(r.admitted).toBe(false);
+  expect(r.reasons.join(" ")).toMatch(/regressed vs baseline/);
+});
+
+test("an improved (or unchanged) score still admits when boundary-clean and gate-green", () => {
+  for (const v of ["improved", "unchanged"] as const) {
+    const r = decideAdmission({
+      changedPaths: ["packages/forge/src/scaffold.ts"],
+      gateGreen: true,
+      scoreDelta: delta(v),
+    });
+    expect(r.admitted).toBe(true);
+  }
 });
 
 test("admitted only when the boundary is clean AND the gate is green", () => {
