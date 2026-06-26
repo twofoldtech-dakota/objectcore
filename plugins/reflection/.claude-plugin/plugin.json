@@ -1,0 +1,16 @@
+{
+  "name": "reflection",
+  "version": "0.1.0",
+  "description": "A self-reflection subagent that diagnoses ObjectCore eval/gate failures and captures durable lessons into the knowledge base.",
+  "author": {
+    "name": "twofoldtech-dakota"
+  },
+  "license": "MIT",
+  "keywords": [
+    "self-improvement",
+    "evals",
+    "subagents",
+    "knowledge"
+  ],
+  "category": "workflow"
+}
