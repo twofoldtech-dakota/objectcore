@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { readFileSync } from "node:fs";
 import { Hono } from "hono";
 import { RegistryDbSource } from "@objectcore/registry-core";
-import { LibSqlCatalogStore } from "@objectcore/registry-db";
+import { LibSqlCatalogStore, LibSqlEventStore } from "@objectcore/registry-db";
 import { createApp } from "./app";
 
 const root = join(import.meta.dir, "..", "..", "..");
@@ -37,6 +37,8 @@ function fileApp(): Hono {
 async function dbApp(): Promise<Hono> {
   const store = LibSqlCatalogStore.fromEnv();
   await store.migrate(); // idempotent: a fresh Turso DB gets its schema before first serve
+  const events = LibSqlEventStore.fromEnv(); // same DB, separate events table
+  await events.migrate();
   const allowed = new Set(
     (process.env.OBJECTCORE_CHANNELS ?? "stable,canary").split(",").map((s) => s.trim()).filter(Boolean),
   );
@@ -49,6 +51,8 @@ async function dbApp(): Promise<Hono> {
   console.log(`ObjectCore registry (prod/db) -> :${port} [channel=${channel}, channels=${[...allowed].join(",")}]`);
   return createApp({
     ...stable,
+    events,
+    eventsToken: process.env.OBJECTCORE_EVENTS_TOKEN, // unset -> open ingestion
     ready: async () => {
       await store.listLatest(channel); // throws if the DB is unreachable / schema missing
       return true;

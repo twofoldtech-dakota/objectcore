@@ -6,7 +6,16 @@ import {
   type MarketplaceJson,
   type WorkspacePlugin,
 } from "@objectcore/registry-core";
+import { InMemoryEventStore } from "@objectcore/registry-db";
 import { createApp } from "../src/app";
+
+function postEvent(app: ReturnType<typeof createApp>, body: unknown, headers: Record<string, string> = {}) {
+  return app.request("/v1/events", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+}
 
 // In-memory source — same shape as MockJudge in @objectcore/eval. Locks the seam
 // (route + output contract) so the Git -> DB source swap can't regress it.
@@ -128,4 +137,46 @@ test("an unknown channel 404s", async () => {
   });
   const res = await app.request("/v1/nope/marketplace.json");
   expect(res.status).toBe(404);
+});
+
+test("POST /v1/events ingests a valid event (202) when a sink is wired", async () => {
+  const events = new InMemoryEventStore(() => "2026-01-01T00:00:00Z");
+  const app = createApp({ source: new MockSource(fixture), derive: base, events });
+  const res = await postEvent(app, { type: "install", plugin: "alpha-plugin" });
+  expect(res.status).toBe(202);
+  expect(await res.json()).toEqual({ ok: true });
+  expect(await events.count()).toBe(1);
+});
+
+test("POST /v1/events rejects a malformed event with 400 and records nothing", async () => {
+  const events = new InMemoryEventStore();
+  const app = createApp({ source: new MockSource(fixture), derive: base, events });
+  const res = await postEvent(app, { type: "nope" });
+  expect(res.status).toBe(400);
+  expect(await events.count()).toBe(0);
+});
+
+test("POST /v1/events is absent (404) when no sink is wired", async () => {
+  const app = createApp({ source: new MockSource(fixture), derive: base });
+  const res = await postEvent(app, { type: "install" });
+  expect(res.status).toBe(404);
+});
+
+test("POST /v1/events enforces the shared-secret token when eventsToken is set", async () => {
+  const events = new InMemoryEventStore();
+  const app = createApp({ source: new MockSource(fixture), derive: base, events, eventsToken: "s3cret" });
+
+  const noAuth = await postEvent(app, { type: "install" });
+  expect(noAuth.status).toBe(401);
+  expect(await events.count()).toBe(0);
+
+  const withAuth = await postEvent(app, { type: "install" }, { authorization: "Bearer s3cret" });
+  expect(withAuth.status).toBe(202);
+  expect(await events.count()).toBe(1);
+});
+
+test("the marketplace seam still serves with a telemetry sink wired", async () => {
+  const app = createApp({ source: new MockSource(fixture), derive: base, events: new InMemoryEventStore() });
+  const catalog = (await (await app.request("/v1/marketplace.json")).json()) as MarketplaceJson;
+  expect(catalog.plugins.map((p) => p.name)).toEqual(["alpha-plugin", "beta-plugin"]);
 });

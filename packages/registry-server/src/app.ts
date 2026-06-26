@@ -1,5 +1,12 @@
 import { Hono } from "hono";
-import { deriveCatalog, searchCatalog, type CatalogSource, type DeriveOpts } from "@objectcore/registry-core";
+import {
+  deriveCatalog,
+  searchCatalog,
+  parseEvent,
+  type CatalogSource,
+  type DeriveOpts,
+  type EventSink,
+} from "@objectcore/registry-core";
 
 export interface ServerOpts {
   /** Where plugins come from. Git off disk (dev) or the registry DB (Stage 3 prod).
@@ -17,6 +24,13 @@ export interface ServerOpts {
   channels?: (channel: string) =>
     | { source: CatalogSource; derive: DeriveOpts | (() => DeriveOpts | Promise<DeriveOpts>) }
     | undefined;
+  /** Optional telemetry sink. When provided, POST /v1/events ingests events; when
+   *  omitted the route is absent (the read seam is unaffected either way). */
+  events?: EventSink;
+  /** Optional shared secret guarding POST /v1/events. When set, the request must send
+   *  a matching `Authorization: Bearer <token>`; when unset, ingestion is open —
+   *  the same inert-until-armed posture as deploy.yml / record-history.yml. */
+  eventsToken?: string;
 }
 
 // The HTTP adapter. Dev-loop server now; the SAME app serves prod at Stage 3 (swap
@@ -57,6 +71,29 @@ export function createApp(opts: ServerOpts): Hono {
       return c.json({ ready: false, error: String(err) }, 503);
     }
   });
+
+  // Telemetry ingestion (additive write path; the marketplace seam is untouched).
+  // Registered only when a sink is injected — like channels, the route is absent
+  // otherwise. parseEvent (pure, in registry-core) does strict validation; the sink
+  // stamps the server-side timestamp.
+  if (opts.events) {
+    const sink = opts.events;
+    app.post("/v1/events", async (c) => {
+      if (opts.eventsToken && c.req.header("authorization") !== `Bearer ${opts.eventsToken}`) {
+        return c.json({ error: "unauthorized" }, 401);
+      }
+      let body: unknown;
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json({ error: "invalid JSON body" }, 400);
+      }
+      const parsed = parseEvent(body);
+      if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+      await sink.record(parsed.event);
+      return c.json({ ok: true }, 202);
+    });
+  }
 
   if (opts.channels) {
     app.get("/v1/:channel/marketplace.json", async (c) => {

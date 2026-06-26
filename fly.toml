@@ -2,8 +2,10 @@
 # The permanent seam is the URL: https://objectcore.ai/v1/marketplace.json
 #
 # Secrets (NOT here — set with `flyctl secrets set`):
-#   DATABASE_URL       libsql://<db>.turso.io        (or file:./local.db for testing)
-#   TURSO_AUTH_TOKEN   <token>
+#   DATABASE_URL            libsql://<db>.turso.io   (or file:./local.db for testing)
+#   TURSO_AUTH_TOKEN        <token>
+#   OBJECTCORE_EVENTS_TOKEN <token>  (optional) — when set, POST /v1/events requires
+#                                    `Authorization: Bearer <token>`; unset = open ingestion
 # Custom domain + TLS:  flyctl certs add objectcore.ai
 
 app = "objectcore-registry"
