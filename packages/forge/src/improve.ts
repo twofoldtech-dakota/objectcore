@@ -12,6 +12,7 @@
 // the thing that decides the optimizer's OWN admission, this file is part of the TCB
 // (see boundary.ts) — a self-edit may never touch it.
 
+import type { ScoreDelta } from "@objectcore/eval";
 import { findBoundaryViolations, type BoundaryViolation } from "./boundary";
 
 /** The ordered checks a forge self-edit must clear (plan 009 Pillar 2). Kept as data
@@ -29,6 +30,10 @@ export const ADMISSION_CHECKS = [
     id: "full-gate",
     what: "`bun run check` is green (tsc + catalog + kb + tests + eval)",
   },
+  {
+    id: "no-regression",
+    what: "the graded gate-health score did not regress vs the pre-edit baseline (open question 4; only when a baseline is supplied)",
+  },
 ] as const;
 
 export interface AdmissionInput {
@@ -36,19 +41,25 @@ export interface AdmissionInput {
   changedPaths: string[];
   /** Did `bun run check` pass? `null` = not run (boundary short-circuited it). */
   gateGreen: boolean | null;
+  /** Optional graded-health delta (pre-edit → post-edit). When present and `regressed`,
+   *  the self-edit is rejected even though the gate is green — it made the gate worse
+   *  (a new fragile green, lower confidence margin). The OQ4 signal. */
+  scoreDelta?: ScoreDelta;
 }
 
 export interface AdmissionResult {
   admitted: boolean;
   boundaryViolations: BoundaryViolation[];
   gateGreen: boolean | null;
+  scoreDelta?: ScoreDelta;
   /** Why it was rejected (empty when admitted). */
   reasons: string[];
 }
 
-/** Pure: decide admissibility. Admitted iff there is NO boundary violation AND the
- *  gate is green. The boundary is sufficient to reject on its own — a diff that
- *  reaches the TCB is never admitted regardless of the gate result. */
+/** Pure: decide admissibility. Admitted iff there is NO boundary violation, the gate
+ *  is green, AND (when a baseline score is supplied) the graded health did not regress.
+ *  The boundary is sufficient to reject on its own — a diff that reaches the TCB is
+ *  never admitted regardless of the gate result. */
 export function decideAdmission(input: AdmissionInput): AdmissionResult {
   const boundaryViolations = findBoundaryViolations(input.changedPaths);
   const reasons: string[] = [];
@@ -59,14 +70,30 @@ export function decideAdmission(input: AdmissionInput): AdmissionResult {
   if (input.gateGreen === null && boundaryViolations.length === 0) {
     reasons.push("the full gate was not run");
   }
-  const admitted = boundaryViolations.length === 0 && input.gateGreen === true;
-  return { admitted, boundaryViolations, gateGreen: input.gateGreen, reasons };
+  const regressed = input.scoreDelta?.verdict === "regressed";
+  if (regressed) {
+    reasons.push(
+      `the gate-health score regressed vs baseline ` +
+        `(Δhealth ${input.scoreDelta!.healthDelta.toFixed(3)}, ` +
+        `Δfailed ${input.scoreDelta!.failedDelta}, Δnear-miss ${input.scoreDelta!.nearMissDelta})`,
+    );
+  }
+  const admitted =
+    boundaryViolations.length === 0 && input.gateGreen === true && !regressed;
+  return { admitted, boundaryViolations, gateGreen: input.gateGreen, scoreDelta: input.scoreDelta, reasons };
 }
 
 /** A human/agent-readable verdict. */
 export function formatAdmission(r: AdmissionResult): string {
+  const scoreLine =
+    r.scoreDelta &&
+    ` Score ${r.scoreDelta.verdict} (Δhealth ${r.scoreDelta.healthDelta.toFixed(3)}).`;
   if (r.admitted) {
-    return "✓ self-edit ADMITTED — boundary clean and the full gate is green. A human reviews/merges (plan 009, Pillar 4).";
+    return (
+      "✓ self-edit ADMITTED — boundary clean and the full gate is green." +
+      (scoreLine ?? "") +
+      " A human reviews/merges (plan 009, Pillar 4)."
+    );
   }
   const lines = ["✗ self-edit REJECTED:"];
   for (const reason of r.reasons) lines.push(`  - ${reason}`);

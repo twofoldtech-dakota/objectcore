@@ -20,6 +20,7 @@ import {
   collectAgentSurfaces,
   collectSkillSurfaces,
   formatReport,
+  formatScore,
   hasApiKey,
   isGreen,
   runActivationEvals,
@@ -27,6 +28,7 @@ import {
   runDelegationEvals,
   runOutputEvals,
   runReadinessEvals,
+  scoreReport,
   summarizeEvidence,
   DEFAULT_JUDGE_MODEL,
 } from "@objectcore/eval";
@@ -68,6 +70,16 @@ await writeFile(
   JSON.stringify(evidence, null, 2) + "\n",
   "utf8",
 );
+
+// OQ4: persist the graded health score alongside evidence — the comparable signal an
+// intervention (a forge refinement, a captured lesson) is measured against.
+const score = scoreReport(report);
+await writeFile(
+  join(root, "dist", "eval-score.json"),
+  JSON.stringify(score, null, 2) + "\n",
+  "utf8",
+);
+console.log(`\nscore: ${formatScore(score)}`);
 
 if (!isGreen(report)) {
   console.error(`\n${summarizeEvidence(evidence)}`);
