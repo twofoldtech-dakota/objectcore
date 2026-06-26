@@ -13,6 +13,29 @@ export interface ComponentSpec {
   body?: string;
 }
 
+/** A single hook action. `type` is required; the other fields depend on the type
+ *  (`command` for command actions, `prompt` for prompt actions, etc.). Extra
+ *  fields pass through verbatim so the engine doesn't lag the hooks spec. */
+export interface HookAction {
+  type: "command" | "http" | "mcp_tool" | "prompt" | "agent";
+  command?: string;
+  prompt?: string;
+  timeout?: number;
+  [key: string]: unknown;
+}
+
+/** One matcher -> actions entry under a lifecycle event. */
+export interface HookEntry {
+  /** Tool/source matcher (e.g. "Bash", "Bash|Write", "*"); omit to match all. */
+  matcher?: string;
+  hooks: HookAction[];
+}
+
+/** Lifecycle-event -> entries. The plugin-file wrapper `{ "hooks": {...} }` is
+ *  added by the scaffolder (a plugin-specific rule), NOT the author — so the spec
+ *  carries just the events map. */
+export type HooksSpec = Record<string, HookEntry[]>;
+
 /** The full description of a plugin to scaffold. Mirrors the manifest fields the
  *  catalog cares about, plus the components and the activation eval cases. */
 export interface PluginSpec {
@@ -27,6 +50,8 @@ export interface PluginSpec {
   repository?: string;
   skills?: ComponentSpec[];
   commands?: ComponentSpec[];
+  /** Lifecycle hooks → emitted as `hooks/hooks.json` (engine adds the wrapper). */
+  hooks?: HooksSpec;
   /** Activation eval cases. REQUIRED when the plugin ships skills. */
   activation?: ActivationCase[];
   /** Optional output-eval expectations; defaults to asserting the version. */

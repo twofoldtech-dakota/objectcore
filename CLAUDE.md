@@ -76,7 +76,7 @@ The hard rule "no plugin enters the catalog without passing validation AND its a
 `plugin-forge` is the meta-plugin that *produces* plugins; `@objectcore/forge` is its deterministic engine. The split follows the model-routing doctrine: the **grill + plan** phases are prose (frontier synthesis), the **scaffold** is code (cheap/deterministic).
 
 - The plugin (`plugins/plugin-forge/`) ships the `/forge` command and three skills: `specifying` (the grilling gate), `planning` (spec → `PluginSpec`, conforms to `writing-great-skills`), and `writing-great-skills` (the reference spec). The `/forge` pipeline is **grill → plan → scaffold → gate**.
-- The engine (`packages/forge/src/scaffold.ts`) takes a **`PluginSpec`** (the output of grill+plan) and emits the plugin dir, components, and `evals/` specs. It guards the hard rules at write time (kebab-case, components at root, string `repository`, array `keywords`) and **refuses to emit a skill without activation cases** — so every generated plugin is gated by construction. It never overwrites without `force`.
+- The engine (`packages/forge/src/scaffold.ts`) takes a **`PluginSpec`** (the output of grill+plan) and emits the plugin dir, components (`skills/`, `commands/`, and — since F2 — `hooks/hooks.json`), and `evals/` specs. It guards the hard rules at write time (kebab-case, components at root, string `repository`, array `keywords`), **refuses to emit a skill without activation cases**, and validates a `hooks` spec (known events, valid action types) — owning the plugin-file `{ "hooks": {...} }` wrapper so the spec carries just the events map. A plugin may be hooks-only (no skill/command). It never overwrites without `force`.
 - `scripts/forge-scaffold.ts` (`bun run forge:scaffold`) runs the engine, then re-derives + validates the catalog, writes `marketplace.json`, and runs the offline output evals. `bun run eval` is the activation half of the gate.
 - Note: the engine lives in `packages/forge` (testable, reused by CI) rather than bundled inside the distributed plugin — bundling for standalone distribution is a Stage 2/3 packaging step (same "migrate off relative-path sources" caveat in AGENTS.md).
 
@@ -187,9 +187,13 @@ nothing above the port changes when they land.
   parse/serialize (`frontmatter.ts`), keeping the package pure like registry-core.
 - **`knowledge-base`** (`plugins/knowledge-base/`, governance meta-plugin) is the
   human/agent runbook: `/remember` + the `curating-knowledge` skill over the store.
-  The automated write path (F2 `kb-writer` hook on `Stop`/`PostToolUse`, F3
-  `self-reflection` subagent turning eval failures into entries) calls the same
-  `KnowledgeStore.append` — closing the Reflexion loop on this substrate.
+- **`kb-writer`** (`plugins/kb-writer/`, F2, hooks-only) is the KB's automated
+  read/write *surface*: a `SessionStart` command hook (`hooks/load-kb.ts`) surfaces
+  `$CLAUDE_PROJECT_DIR/knowledge/INDEX.md` into context, and a `Stop` prompt hook
+  nudges capturing any durable lesson. It is hooks-only on purpose — a skill would
+  clash with `curating-knowledge` on activation. The eventual F3 `self-reflection`
+  subagent (lesson *generator* from eval failures) writes via the same
+  `KnowledgeStore.append`, closing the Reflexion loop on this substrate.
 
 ### Repo CLI wiring (`scripts/_workspace.ts`, `scripts/_finalize.ts`)
 

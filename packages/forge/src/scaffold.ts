@@ -7,11 +7,57 @@
 
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { ComponentSpec, PluginSpec, ScaffoldResult } from "./types";
+import type { ComponentSpec, HooksSpec, PluginSpec, ScaffoldResult } from "./types";
 
 // Canonical rule lives in registry-core/validate.ts; mirrored here for a fast
 // pre-write guard so we never emit a plugin the catalog would later reject.
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+// The five hook action types (code.claude.com/docs/en/hooks). Used to reject a
+// malformed hooks spec before writing.
+const HOOK_ACTION_TYPES = new Set(["command", "http", "mcp_tool", "prompt", "agent"]);
+
+// Documented lifecycle events — mirrored from the hooks docs as a typo guard
+// ("SesionStart" should fail loudly, not emit a dead hook). Update if docs add events.
+const HOOK_EVENTS = new Set([
+  "SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse",
+  "PostToolUseFailure", "Stop", "StopFailure", "SubagentStop", "PreCompact",
+  "Notification", "FileChanged", "PermissionRequest", "InstructionsLoaded",
+]);
+
+/** Pre-write guard for a hooks spec: known events, non-empty entries, and a valid
+ *  action type (+ the required field for command/prompt). Throws before any write. */
+function validateHooks(hooks: HooksSpec): void {
+  const events = Object.keys(hooks);
+  if (!events.length) throw new Error("`hooks` is present but has no events");
+  for (const event of events) {
+    if (!HOOK_EVENTS.has(event)) {
+      throw new Error(`unknown hook event "${event}" (typo? see code.claude.com/docs/en/hooks)`);
+    }
+    const entries = hooks[event];
+    if (!Array.isArray(entries) || entries.length === 0) {
+      throw new Error(`hook event "${event}" must have a non-empty array of entries`);
+    }
+    for (const entry of entries) {
+      if (!Array.isArray(entry.hooks) || entry.hooks.length === 0) {
+        throw new Error(`a "${event}" hook entry must have a non-empty \`hooks\` array`);
+      }
+      for (const action of entry.hooks) {
+        if (!HOOK_ACTION_TYPES.has(action.type)) {
+          throw new Error(
+            `invalid hook action type "${action.type}" in "${event}" (must be command|http|mcp_tool|prompt|agent)`,
+          );
+        }
+        if (action.type === "command" && !action.command) {
+          throw new Error(`a "command" hook in "${event}" needs a \`command\``);
+        }
+        if (action.type === "prompt" && !action.prompt) {
+          throw new Error(`a "prompt" hook in "${event}" needs a \`prompt\``);
+        }
+      }
+    }
+  }
+}
 
 const json = (v: unknown): string => JSON.stringify(v, null, 2) + "\n";
 
@@ -78,12 +124,14 @@ export async function scaffoldPlugin(
   if (spec.repository !== undefined && typeof spec.repository !== "string") {
     throw new Error("`repository` must be a string");
   }
-  if (skills.length + commands.length === 0) {
-    throw new Error("a plugin needs at least one component (skill or command)");
+  const hasHooks = !!(spec.hooks && Object.keys(spec.hooks).length);
+  if (skills.length + commands.length === 0 && !hasHooks) {
+    throw new Error("a plugin needs at least one component (skill, command, or hooks)");
   }
   for (const c of [...skills, ...commands]) {
     if (!KEBAB.test(c.name)) throw new Error(`component name "${c.name}" must be kebab-case`);
   }
+  if (spec.hooks) validateHooks(spec.hooks);
   // The factory rule: a skill that never fires is worse than one that fails to
   // parse, so a plugin with skills must ship activation cases to gate them.
   if (skills.length > 0 && !(spec.activation && spec.activation.length)) {
@@ -136,6 +184,12 @@ export async function scaffoldPlugin(
   }
   for (const c of commands) {
     await emit(written, join(dir, "commands", `${c.name}.md`), commandDoc(c));
+  }
+
+  // Hooks: the spec carries just the events map; the plugin file requires the
+  // `{ "hooks": {...} }` wrapper (a plugin-specific rule the engine owns).
+  if (spec.hooks) {
+    await emit(written, join(dir, "hooks", "hooks.json"), json({ hooks: spec.hooks }));
   }
 
   if (spec.activation?.length) {
