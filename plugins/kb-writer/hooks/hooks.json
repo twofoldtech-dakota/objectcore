@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/hooks/load-kb.ts\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Before stopping: did this session produce a durable lesson, pattern, gotcha, or decision worth keeping? If so, capture it in the project knowledge base (use the curating-knowledge skill or `bun run kb:add`). If nothing durable emerged, just stop.",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
