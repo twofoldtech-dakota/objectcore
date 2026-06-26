@@ -12,8 +12,8 @@
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
 import { Hono } from "hono";
-import { RegistryDbSource } from "@objectcore/registry-core";
-import { LibSqlCatalogStore } from "@objectcore/registry-db";
+import { GitHubOidcVerifier, RegistryDbSource } from "@objectcore/registry-core";
+import { LibSqlCatalogStore, LibSqlEventStore } from "@objectcore/registry-db";
 import { createApp } from "./app";
 
 const root = join(import.meta.dir, "..", "..", "..");
@@ -37,6 +37,8 @@ function fileApp(): Hono {
 async function dbApp(): Promise<Hono> {
   const store = LibSqlCatalogStore.fromEnv();
   await store.migrate(); // idempotent: a fresh Turso DB gets its schema before first serve
+  const events = LibSqlEventStore.fromEnv(); // same DB, separate events table
+  await events.migrate();
   const allowed = new Set(
     (process.env.OBJECTCORE_CHANNELS ?? "stable,canary").split(",").map((s) => s.trim()).filter(Boolean),
   );
@@ -46,9 +48,33 @@ async function dbApp(): Promise<Hono> {
     return { source: src, derive: async () => ({ ...base, ...(await src.pins()) }) };
   };
   const stable = sourceFor(channel);
-  console.log(`ObjectCore registry (prod/db) -> :${port} [channel=${channel}, channels=${[...allowed].join(",")}]`);
+
+  // Self-service publish — inert until armed. Enabled only when an OIDC audience is
+  // configured; otherwise POST /v1/plugins is absent (the release-CI git path still
+  // ingests via registry:ingest regardless). issuer defaults to GitHub Actions.
+  const audience = process.env.OBJECTCORE_OIDC_AUDIENCE;
+  const issuer = process.env.OBJECTCORE_OIDC_ISSUER ?? "https://token.actions.githubusercontent.com";
+  const publish = audience
+    ? {
+        verifier: new GitHubOidcVerifier(issuer),
+        policy: {
+          issuer,
+          audience,
+          allowedRepositories: (process.env.OBJECTCORE_PUBLISH_REPOS ?? "")
+            .split(",").map((s) => s.trim()).filter(Boolean),
+        },
+        store,
+      }
+    : undefined;
+
+  console.log(
+    `ObjectCore registry (prod/db) -> :${port} [channel=${channel}, channels=${[...allowed].join(",")}, publish=${publish ? "on" : "off"}]`,
+  );
   return createApp({
     ...stable,
+    events,
+    eventsToken: process.env.OBJECTCORE_EVENTS_TOKEN, // unset -> open ingestion
+    publish,
     ready: async () => {
       await store.listLatest(channel); // throws if the DB is unreachable / schema missing
       return true;

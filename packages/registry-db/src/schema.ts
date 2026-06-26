@@ -33,3 +33,20 @@ CREATE TABLE IF NOT EXISTS channels (
   PRIMARY KEY (channel, plugin_name)
 );
 `;
+
+// Telemetry schema (the `/v1/events` write path). Kept a SEPARATE constant + a
+// SEPARATE store from the catalog so the two concerns stay independent — events are
+// unrelated to derivation. Append-only; the server stamps `at` via SQLite. Both
+// migrations are idempotent (CREATE ... IF NOT EXISTS), applied on boot in prod.ts.
+export const EVENTS_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS events (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  type    TEXT NOT NULL,
+  plugin  TEXT,
+  channel TEXT,
+  meta    TEXT,                              -- small JSON bag, nullable
+  at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS events_plugin_idx ON events(plugin);
+CREATE INDEX IF NOT EXISTS events_type_idx ON events(type);
+`;
