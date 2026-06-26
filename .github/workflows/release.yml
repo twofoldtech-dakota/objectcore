@@ -110,22 +110,14 @@ jobs:
           name: marketplace-pinned
           path: dist/marketplace.pinned.json
 
-      # Stage 3: push the published catalog into the registry DB so the live backend
-      # serves it with no redeploy. Self-gates on DATABASE_URL — a green no-op until
-      # the registry DB secret is configured.
-      - name: Ingest pinned catalog into the registry DB
-        if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != ''
-        run: bun run registry:ingest
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-
-      # Plan 011: the OIDC publisher path — dogfoods POST /v1/plugins, the
-      # credential-free alternative to the direct DB ingest above (no DATABASE_URL,
-      # only id-token: write). INERT until the repo variable OBJECTCORE_REGISTRY_URL
-      # is set; arm it to publish over HTTP instead of (or alongside — upsert is
-      # idempotent) the direct ingest. The job already grants id-token: write; the CLI
-      # mints a token scoped to OBJECTCORE_OIDC_AUDIENCE and posts each plugin.
+      # Stage 3: publish the released catalog to the live backend over OIDC (plan 011) —
+      # the SINGLE publish path. It dogfoods POST /v1/plugins exactly as an external
+      # publisher would: no DATABASE_URL, only id-token: write. The CLI mints a token
+      # scoped to OBJECTCORE_OIDC_AUDIENCE and posts each plugin; the route verifies it,
+      # re-enforces the provenance gate, and writes through the CatalogStore.
+      # (The direct `bun run registry:ingest` path remains available as manual break-glass
+      # if the backend is ever unreachable during a release — DATABASE_URL + TURSO_AUTH_TOKEN.)
+      # Guarded by OBJECTCORE_REGISTRY_URL so a deliberate disarm is possible.
       - name: Publish to the registry over OIDC (POST /v1/plugins)
         if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != '' && vars.OBJECTCORE_REGISTRY_URL != ''
         run: bun run registry:publish

@@ -49,8 +49,9 @@ The same split as `deriveCatalog`'s sources/sinks and the eval `Judge`:
   enforcement points (git-publish + HTTP-publish) — by design.
 - **Wiring** (`prod.ts`): inert until `OBJECTCORE_OIDC_AUDIENCE` is set. Then
   `GitHubOidcVerifier` + a policy from `OBJECTCORE_OIDC_ISSUER` (default GitHub Actions)
-  + `OBJECTCORE_PUBLISH_REPOS`. The release-CI git path (`registry:ingest`) still works
-  regardless — this is an *additional* publish channel, not a replacement.
+  + `OBJECTCORE_PUBLISH_REPOS`. Once proven, this **replaced** the direct `registry:ingest`
+  step in release CI — it is now the single publish path; `registry:ingest` is retained only
+  as manual break-glass (direct `DATABASE_URL`) if the backend is unreachable during a release.
 
 ## What this deliberately does NOT do
 
@@ -76,10 +77,12 @@ Self-service publishing is turned on. **Server** (Fly secrets):
 `OBJECTCORE_PUBLISH_REPOS=twofoldtech-dakota/objectcore` (issuer left default = GitHub
 Actions). **Publisher** (GitHub repo variables): `OBJECTCORE_REGISTRY_URL` +
 `OBJECTCORE_OIDC_AUDIENCE`, both `https://registry.objectcore.ai` (the audience must match
-both sides). Verified: `POST /v1/plugins` → 401 for a missing/bad token (was 404 when inert).
-The real 201 path needs a genuine GitHub Actions OIDC token, so it dogfoods on each merge to
-main via the `registry:publish` step (sequenced AFTER `registry:ingest`, so a hiccup is
-cosmetic). *Op gotcha:* Fly `auto_stop_machines` means a staged secret needs a forced redeploy
+both sides). **Proven end-to-end** (run 28260201962): a real GitHub Actions OIDC token →
+live `GitHubOidcVerifier` → repo-allowlist authz → provenance gate → DB write, **12/12 plugins
+published, 0 failed**. Now that it's proven, `registry:publish` is the **single** release-CI
+publish path — the direct `registry:ingest` step was removed (kept as manual break-glass), so a
+publish failure now fails the release (visible) rather than being masked by a parallel write.
+*Op gotcha:* Fly `auto_stop_machines` means a staged secret needs a forced redeploy
 (`gh workflow run deploy.yml`) to apply on a warm machine.
 
 ## Publisher side — BUILT (the dogfood)
@@ -92,8 +95,8 @@ cosmetic). *Op gotcha:* Fly `auto_stop_machines` means a staged secret needs a f
 each to `${OBJECTCORE_REGISTRY_URL}/v1/plugins`. It **self-gates green** (the
 `registry:ingest` posture): a no-op unless `OBJECTCORE_REGISTRY_URL` + an OIDC token are
 present. `--dry-run` prints the plan without minting/posting. `release.yml` runs it after
-attestation, **inert until the repo variable `OBJECTCORE_REGISTRY_URL` is set** — the
-credential-free alternative to (or, idempotently, alongside) the direct DB ingest. When
+attestation, **inert until the repo variable `OBJECTCORE_REGISTRY_URL` is set** — now the
+single, credential-free release publish path (it replaced the direct DB ingest step). When
 attested it attaches a provenance reference (incl. the `attestation-url`) so MCP-bundling
 plugins clear the route's provenance gate.
 
