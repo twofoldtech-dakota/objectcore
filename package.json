@@ -13,7 +13,10 @@
     "release:version": "bun run scripts/release-version.ts",
     "release:publish": "bun run scripts/release-publish.ts",
     "check:catalog": "bun run scripts/check-catalog.ts",
-    "check": "bunx tsc && bun run check:catalog && bun test && bun run eval",
+    "kb:add": "bun run scripts/kb-add.ts",
+    "kb:index": "bun run scripts/kb-index.ts",
+    "kb:check": "bun run scripts/kb-check.ts",
+    "check": "bunx tsc && bun run check:catalog && bun run kb:check && bun test && bun run eval",
     "clean:git": "bun run scripts/clean-git.ts",
     "registry:dev": "bun run packages/registry-server/src/dev.ts",
     "registry:prod": "bun run packages/registry-server/src/prod.ts",
@@ -26,7 +29,8 @@
     "@objectcore/registry-db": "workspace:*",
     "@objectcore/eval": "workspace:*",
     "@objectcore/forge": "workspace:*",
-    "@objectcore/release": "workspace:*"
+    "@objectcore/release": "workspace:*",
+    "@objectcore/knowledge": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",
