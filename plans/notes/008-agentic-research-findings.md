@@ -88,9 +88,10 @@ Sources: `code.claude.com/docs/en/plugins-reference`,
    rates?) so curation becomes eval-gated, not just time-based. **Measurement
    primitive BUILT** (`@objectcore/eval` `score.ts`: graded `EvalScore` +
    `compareScores`, emitted to `dist/eval-score.json`, enforced as the F7 admission
-   pipeline's non-regression check; see `plans/009`). Remaining: the *longitudinal*
-   half — persist score history so "does lesson X raise pass rates over time?" is
-   answerable, not just single-step before/after.
+   pipeline's non-regression check; see `plans/009`). **Longitudinal half also BUILT**
+   (`history.ts` + `metrics/eval-history.jsonl` + `bun run eval:record`/`eval:trend`):
+   persisted, trended health so "does lesson X raise pass rates over time?" is answerable.
+   Remaining: CI auto-recording on merge to main (ops wiring).
 5. Safe gating boundary for letting forge modify its own scaffolding code.
    **ANSWERED + built** (immutable-gate / separation-of-powers; `plans/009`,
    merged PR #14).

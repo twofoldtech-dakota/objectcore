@@ -202,9 +202,13 @@ deliberately narrow and widens only as trust is earned.
      graded, comparable signal, written each run to `dist/eval-score.json`. The admission
      pipeline now enforces **non-regression**: `bun run forge:improve --baseline <score>`
      rejects a self-edit that lowers `health` (a new fragile green, thinner margin) even
-     when the gate is still green — the 4th admission check. **Still deferred:** the
-     *longitudinal* half of OQ4 (do captured lessons raise pass rates across *many* runs?)
-     needs persisted score history (telemetry), and the autonomous executor (below).
+     when the gate is still green — the 4th admission check. The **longitudinal** half is
+     also built (`feat/oq4-score-history`): `history.ts` + `bun run eval:record` /
+     `bun run eval:trend` append each run's score to the git-tracked
+     `metrics/eval-history.jsonl` and report the overall/last-step trend — so "is the
+     factory getting healthier over time?" is answerable. **Still deferred:** auto-recording
+     in CI on merge to `main` (an ops wiring step — commit the appended line back), and the
+     autonomous executor (below).
 4. **Phase 3 — autonomous execution + widening autonomy (RESEARCH; designed, not
    built; see the sketch below).** Widen the optimizer's reach only as the corpus and a
    real quality signal prove it can be trusted, and only for Tier A. **Tier B stays
@@ -234,12 +238,13 @@ human kicking it off:
   autonomous executor's gain over human-initiated Phase 1 is *convenience, not capability* —
   it does not change what the system is allowed to do, only who presses start.
 - The honest precondition is **open question 4**: until a signal shows that a given
-  refinement actually *helps* (not merely *passes*), auto-proposing is churn. The
-  *measurement primitive* is now built (the graded health score + non-regression admission),
-  which gives the executor a verdict to act on; what is still missing is the *longitudinal*
-  signal (does a captured lesson raise pass rates over time?) and the willingness to let it
-  run unattended. The safe, testable bricks are built; turning on the thin, key-gated
-  orchestration should wait for that longitudinal signal.
+  refinement actually *helps* (not merely *passes*), auto-proposing is churn. Both halves
+  of that signal are now built — the *single-step* verdict (graded health score +
+  non-regression admission) and the *longitudinal* trend (`metrics/eval-history.jsonl` +
+  `bun run eval:trend`). What remains before the executor is genuinely worth turning on is
+  CI auto-recording (so the trend accrues unattended) and enough recorded history to trust
+  the trend. The safe, testable bricks are built; the orchestration stays a thin, key-gated,
+  human-reviewed wrapper.
 
 ## This plan's deliverable & done criteria
 
@@ -274,8 +279,8 @@ ALL must hold for the *design* to be done:
   that its refinements actually *help*, not merely *pass*. **OQ4's measurement primitive
   is now built** (`score.ts`: the graded `EvalScore` + `compareScores`, emitted to
   `dist/eval-score.json`, enforced as the admission pipeline's non-regression check). The
-  remaining, *longitudinal* half — does a captured lesson raise pass rates across many
-  runs? — needs persisted score history and is the next OQ4 increment.
+  *longitudinal* half is built too (`history.ts` + `metrics/eval-history.jsonl` +
+  `bun run eval:record`/`eval:trend`); only CI auto-recording remains (an ops step).
 - Keep this design and `scaffold.ts` in sync: if a future hand-authored primitive
   lands (Tier B), add its golden + guard cases to Phase 0's corpus in the same PR,
   so the meta-eval never lags the engine.
