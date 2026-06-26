@@ -8,5 +8,9 @@
     "@objectcore/registry-core": "workspace:*",
     "@objectcore/eval": "workspace:*"
   },
-  "devDependencies": { "typescript": "^5.6.0", "@types/bun": "latest" }
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/bun": "latest",
+    "@objectcore/release": "workspace:*"
+  }
 }
