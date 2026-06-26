@@ -76,7 +76,7 @@ The hard rule "no plugin enters the catalog without passing validation AND its a
 `plugin-forge` is the meta-plugin that *produces* plugins; `@objectcore/forge` is its deterministic engine. The split follows the model-routing doctrine: the **grill + plan** phases are prose (frontier synthesis), the **scaffold** is code (cheap/deterministic).
 
 - The plugin (`plugins/plugin-forge/`) ships the `/forge` command and three skills: `specifying` (the grilling gate), `planning` (spec → `PluginSpec`, conforms to `writing-great-skills`), and `writing-great-skills` (the reference spec). The `/forge` pipeline is **grill → plan → scaffold → gate**.
-- The engine (`packages/forge/src/scaffold.ts`) takes a **`PluginSpec`** (the output of grill+plan) and emits the plugin dir, components (`skills/`, `commands/`, and — since F2 — `hooks/hooks.json`), and `evals/` specs. It guards the hard rules at write time (kebab-case, components at root, string `repository`, array `keywords`), **refuses to emit a skill without activation cases**, and validates a `hooks` spec (known events, valid action types) — owning the plugin-file `{ "hooks": {...} }` wrapper so the spec carries just the events map. A plugin may be hooks-only (no skill/command). It never overwrites without `force`.
+- The engine (`packages/forge/src/scaffold.ts`) takes a **`PluginSpec`** (the output of grill+plan) and emits the plugin dir, components (`skills/`, `commands/`, and — since F2/F3 — `hooks/hooks.json` and `agents/*.md`), and `evals/` specs. It guards the hard rules at write time (kebab-case, components at root, string `repository`, array `keywords`), **refuses to emit a skill without activation cases**, validates a `hooks` spec (known events, valid action types; owns the `{ "hooks": {...} }` wrapper), and validates `agents` — **rejecting the forbidden `hooks`/`mcpServers`/`permissionMode` fields** and serializing tool lists comma-separated (the array form has a spawn bug). A plugin may be hooks- or agents-only (no skill/command). It never overwrites without `force`. (Gap: agents enter the catalog without a delegation-quality eval yet — an F4 follow-up.)
 - `scripts/forge-scaffold.ts` (`bun run forge:scaffold`) runs the engine, then re-derives + validates the catalog, writes `marketplace.json`, and runs the offline output evals. `bun run eval` is the activation half of the gate.
 - Note: the engine lives in `packages/forge` (testable, reused by CI) rather than bundled inside the distributed plugin — bundling for standalone distribution is a Stage 2/3 packaging step (same "migrate off relative-path sources" caveat in AGENTS.md).
 
@@ -191,9 +191,13 @@ nothing above the port changes when they land.
   read/write *surface*: a `SessionStart` command hook (`hooks/load-kb.ts`) surfaces
   `$CLAUDE_PROJECT_DIR/knowledge/INDEX.md` into context, and a `Stop` prompt hook
   nudges capturing any durable lesson. It is hooks-only on purpose — a skill would
-  clash with `curating-knowledge` on activation. The eventual F3 `self-reflection`
-  subagent (lesson *generator* from eval failures) writes via the same
-  `KnowledgeStore.append`, closing the Reflexion loop on this substrate.
+  clash with `curating-knowledge` on activation.
+- **`reflection`** (`plugins/reflection/`, F3, agents-only) ships the
+  `self-reflection` subagent — Reflexion's lesson *generator*: given a gate/eval
+  failure it diagnoses the root cause, proposes the minimal fix, and (when durable)
+  writes a lesson via `bun run kb:add`. Delegate it after a `bun run check` failure.
+  With F1+F2+F3 the Reflexion triangle is assembled (KB ← write surface ← generator);
+  F4 (EDDOps) will auto-invoke it on failure so the gate *feeds* the loop.
 
 ### Repo CLI wiring (`scripts/_workspace.ts`, `scripts/_finalize.ts`)
 

@@ -17,11 +17,14 @@
   *generate* them) AND stand up the **self-improving loop** (KB + eval feedback).
 - **Loop autonomy**: **checkpointed** — one item per iteration, gated, then pause
   for review/merge before the next (maintainer's choice).
-- **Progress**: F1 (KB) merged (9 plugins). F2 (hooks primitive + `kb-writer`)
-  **built** on `feat/hooks-primitive` (gate green, 10 plugins; forge now emits
-  hooks; loop write path dogfooded via `kb:add`). **F3 (subagents primitive +
-  `self-reflection` subagent) is next** — the lesson *generator* that turns eval
-  failures into KB entries.
+- **Progress**: F1 (KB) + F2 (hooks + `kb-writer`) merged (10 plugins). F3
+  (subagents primitive + `reflection`/`self-reflection`) **built** on
+  `feat/subagents-primitive` (gate green, 11 plugins; forge now emits agents). The
+  Reflexion triangle is assembled: KB (F1) ← write surface (F2) ← lesson generator
+  (F3). **F4 (EDDOps eval-loop hardening) is next** — capture structured eval
+  evidence and auto-invoke `self-reflection` on failure, so the gate feeds the loop
+  instead of just blocking. (Gap to close in F4: agents currently enter the catalog
+  ungated on delegation quality — no agent-activation eval yet.)
 
 ## The self-improving loop these items assemble
 
@@ -51,7 +54,7 @@ Items F1–F4 are not independent — they snap together into one Reflexion/EDDO
 |----|------|--------|----------------------|---------------------|--------|---------|--------|
 | **F1** | **Knowledge base substrate** (FIRST) | `@objectcore/knowledge` (`KnowledgeStore` port + `FileKnowledgeStore`) over `knowledge/` (entries + generated `INDEX.md`); `kb:add`/`kb:index`/`kb:check` CLIs (`kb:check` in the gate); a `knowledge-base` governance meta-plugin (`/remember` + `curating-knowledge`) | — (substrate, not a CC primitive) | the store every other loop piece reads/writes | M | — | **DONE (pending review)** — branch `feat/knowledge-base`; storage is a port so DB (Turso) + MCP-resource are later adapters/seams |
 | **F2** | **Hooks primitive + `kb-writer` plugin** | `scaffold.ts` now emits `hooks/hooks.json` (PluginSpec.hooks; engine owns the `{hooks:{...}}` wrapper; validates events/action-types; forge tests); a hooks-only `kb-writer` plugin: `SessionStart` command surfaces `knowledge/INDEX.md` into context, `Stop` prompt nudges lesson capture | **hooks** (forge-generatable) | the read/write surface around the KB (Reflexion long-term memory) | M–L | F1 | **DONE (pending review)** — branch `feat/hooks-primitive`; kb-writer is hooks-only to avoid an activation clash with `curating-knowledge` |
-| **F3** | **Subagents primitive + `self-reflection` subagent** | teach `scaffold.ts` to emit `agents/*.md` (OMIT `hooks`/`mcpServers`/`permissionMode`); a subagent that converts failing activation/output evals into structured KB entries | **subagents** (forge-generatable) | Reflexion's Self-Reflection model (lesson generator) | M | F1 | TODO |
+| **F3** | **Subagents primitive + `self-reflection` subagent** | `scaffold.ts` now emits `agents/*.md` (AgentSpec; rejects `hooks`/`mcpServers`/`permissionMode`; tools serialized comma-separated; forge tests); a `reflection` plugin shipping the `self-reflection` subagent that diagnoses gate failures and writes durable lessons to the KB | **subagents** (forge-generatable) | Reflexion's Self-Reflection model (lesson generator) | M | F1 | **DONE (pending review)** — branch `feat/subagents-primitive`; agents-only plugin |
 | **F4** | **EDDOps eval-loop hardening** | promote the terminal eval gate to a continuous governing function: capture structured eval evidence (pass/fail, near-misses) → write to F1 → forge consumes prior lessons on next generation | — (extends existing eval gate) | turns the one-shot gate into a feedback loop | M | F1, F3 | TODO |
 | **F5** | **MCP primitive in forge** | scaffold `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}`, behind the existing publish-time provenance/attestation gate | **MCP** (forge-generatable) | extends generatable set; enables tool-bearing plugins | M–L | F2 | TODO |
 | **F6** | **Output-styles (+ minimal plugin settings) primitive** | scaffold `output-styles/`; whatever of `settings.json` (`agent`/`subagentStatusLine`) is packagable | **output styles** | rounds out coverage; low leverage | S each | F1 | TODO |

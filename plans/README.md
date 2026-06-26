@@ -19,7 +19,7 @@ honor its STOP conditions, and update your row below when done.
 | 005 | Forge engine guards — pre-write activation↔skill cross-check + stub marker | P2 | S | — | DONE (merged to main `9beeee8`) |
 | 006 | Eval gate — ship-readiness: require a negative case + fail unfilled (`forge:todo`) bodies | P2 | S–M | 005 | DONE (merged to main `f280fb0`) |
 | 007 | Forge prose — trigger-surface recipe, case budget, category vocab, real body | P3 | S | 006 | DONE (merged to main `5d449d3`) |
-| 008 | **Epic: foundational agentic pieces** — KB + hooks/subagents/MCP primitives + EDDOps eval loop (build-loop backlog) | P1 | L (multi-item) | — | IN PROGRESS — F1 (KB) merged; **F2 (hooks + kb-writer) DONE (pending review)** on `feat/hooks-primitive`; F3 (subagents) next. Worklist in `008-foundational-agentic-roadmap.md`; evidence in `notes/008-agentic-research-findings.md` |
+| 008 | **Epic: foundational agentic pieces** — KB + hooks/subagents/MCP primitives + EDDOps eval loop (build-loop backlog) | P1 | L (multi-item) | — | IN PROGRESS — F1 (KB) + F2 (hooks + kb-writer) merged; **F3 (subagents + reflection) DONE (pending review)** on `feat/subagents-primitive`; F4 (EDDOps) next. Worklist in `008-foundational-agentic-roadmap.md` |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
