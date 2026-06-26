@@ -7,7 +7,16 @@
 
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AgentSpec, ComponentSpec, HooksSpec, McpSpec, PluginSpec, ScaffoldResult } from "./types";
+import type {
+  AgentSpec,
+  ComponentSpec,
+  HooksSpec,
+  McpSpec,
+  OutputStyleSpec,
+  PluginSettingsSpec,
+  PluginSpec,
+  ScaffoldResult,
+} from "./types";
 
 // Canonical rule lives in registry-core/validate.ts; mirrored here for a fast
 // pre-write guard so we never emit a plugin the catalog would later reject.
@@ -115,6 +124,42 @@ function validateMcp(mcp: McpSpec): void {
   }
 }
 
+/** Pre-write guard for output styles: kebab-case name (the filename stem). Throws
+ *  before any write. */
+function validateOutputStyles(styles: OutputStyleSpec[]): void {
+  for (const s of styles) {
+    if (!KEBAB.test(s.name)) {
+      throw new Error(`output style name "${s.name}" must be kebab-case`);
+    }
+  }
+}
+
+// The only settings keys honored when a plugin contributes them (Claude Code docs).
+const SETTINGS_KEYS = new Set(["agent", "subagentStatusLine"]);
+
+/** Pre-write guard for plugin settings: only the packagable keys, and `agent` must
+ *  name a declared agent (it runs that agent as the main thread). Throws before any
+ *  write. */
+function validateSettings(settings: PluginSettingsSpec, agentNames: Set<string>): void {
+  for (const key of Object.keys(settings)) {
+    if (!SETTINGS_KEYS.has(key)) {
+      throw new Error(
+        `plugin settings key "${key}" is not packagable — only agent|subagentStatusLine are honored`,
+      );
+    }
+  }
+  if (settings.agent !== undefined) {
+    if (typeof settings.agent !== "string" || !settings.agent.trim()) {
+      throw new Error("`settings.agent` must be a non-empty string");
+    }
+    if (!agentNames.has(settings.agent)) {
+      throw new Error(
+        `settings.agent "${settings.agent}" names no agent declared in this plugin`,
+      );
+    }
+  }
+}
+
 const json = (v: unknown): string => JSON.stringify(v, null, 2) + "\n";
 
 async function exists(p: string): Promise<boolean> {
@@ -173,6 +218,25 @@ it is delegated to, the steps it takes, and the exact shape of what it returns.
 `;
 }
 
+function defaultOutputStyleBody(s: OutputStyleSpec): string {
+  return `# ${titleCase(s.name)}
+
+${FORGE_STUB_MARKER} Replace this stub with the output style's system-prompt instructions —
+how Claude should shape its responses when this style is active (tone, structure,
+what to emphasize or omit).
+`;
+}
+
+/** Serialize an output style to `output-styles/<name>.md`. Frontmatter uses the
+ *  hyphenated Claude Code keys; unset booleans are omitted. */
+function outputStyleDoc(s: OutputStyleSpec): string {
+  const fm: string[] = [`name: ${s.name}`];
+  if (s.description) fm.push(`description: ${s.description}`);
+  if (s.keepCodingInstructions) fm.push(`keep-coding-instructions: true`);
+  if (s.forceForPlugin) fm.push(`force-for-plugin: true`);
+  return `---\n${fm.join("\n")}\n---\n${s.body ?? defaultOutputStyleBody(s)}`;
+}
+
 /** Serialize a subagent to `agents/<name>.md`. Tool/skill lists are comma-separated
  *  strings (the YAML-array form has a known spawn bug). */
 function agentDoc(a: AgentSpec): string {
@@ -199,6 +263,7 @@ export async function scaffoldPlugin(
   const skills = spec.skills ?? [];
   const commands = spec.commands ?? [];
   const agents = spec.agents ?? [];
+  const outputStyles = spec.outputStyles ?? [];
 
   if (!KEBAB.test(spec.name)) throw new Error(`plugin name "${spec.name}" must be kebab-case`);
   if (!spec.description?.trim()) throw new Error("plugin spec needs a non-empty description");
@@ -207,8 +272,16 @@ export async function scaffoldPlugin(
   }
   const hasHooks = !!(spec.hooks && Object.keys(spec.hooks).length);
   const hasMcp = !!(spec.mcp && Object.keys(spec.mcp).length);
-  if (skills.length + commands.length + agents.length === 0 && !hasHooks && !hasMcp) {
-    throw new Error("a plugin needs at least one component (skill, command, agent, hooks, or mcp)");
+  // Settings is an adjunct (its `agent` references another component), not a
+  // standalone component — so it doesn't satisfy the "has a component" floor.
+  if (
+    skills.length + commands.length + agents.length + outputStyles.length === 0 &&
+    !hasHooks &&
+    !hasMcp
+  ) {
+    throw new Error(
+      "a plugin needs at least one component (skill, command, agent, hooks, mcp, or output style)",
+    );
   }
   for (const c of [...skills, ...commands]) {
     if (!KEBAB.test(c.name)) throw new Error(`component name "${c.name}" must be kebab-case`);
@@ -216,6 +289,10 @@ export async function scaffoldPlugin(
   if (spec.hooks) validateHooks(spec.hooks);
   if (agents.length) validateAgents(agents);
   if (spec.mcp) validateMcp(spec.mcp);
+  if (outputStyles.length) validateOutputStyles(outputStyles);
+  if (spec.settings) {
+    validateSettings(spec.settings, new Set(agents.map((a) => a.name)));
+  }
   // The factory rule: a skill that never fires is worse than one that fails to
   // parse, so a plugin with skills must ship activation cases to gate them.
   if (skills.length > 0 && !(spec.activation && spec.activation.length)) {
@@ -311,6 +388,20 @@ export async function scaffoldPlugin(
   // a path-override string) — so the manifest schema stays clean.
   if (spec.mcp) {
     await emit(written, join(dir, ".mcp.json"), json({ mcpServers: spec.mcp }));
+  }
+
+  for (const s of outputStyles) {
+    await emit(written, join(dir, "output-styles", `${s.name}.md`), outputStyleDoc(s));
+  }
+
+  // Settings: emit only the packagable keys at the plugin root (empty -> skip).
+  if (spec.settings && Object.keys(spec.settings).length) {
+    const out: Record<string, unknown> = {};
+    if (spec.settings.agent !== undefined) out.agent = spec.settings.agent;
+    if (spec.settings.subagentStatusLine !== undefined) {
+      out.subagentStatusLine = spec.settings.subagentStatusLine;
+    }
+    await emit(written, join(dir, "settings.json"), json(out));
   }
 
   if (spec.activation?.length) {

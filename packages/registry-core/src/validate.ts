@@ -97,7 +97,7 @@ export function validateMarketplaceName(name: string): ValidationIssue[] {
 /** Directory-placement lint: components must live at the plugin root, not inside .claude-plugin/. */
 export async function validatePlacement(plugins: WorkspacePlugin[]): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
-  const forbidden = ["commands", "agents", "skills", "hooks"];
+  const forbidden = ["commands", "agents", "skills", "hooks", "output-styles"];
   for (const p of plugins) {
     for (const f of forbidden) {
       try {

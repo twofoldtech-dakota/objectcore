@@ -1,6 +1,9 @@
 import { test, expect } from "bun:test";
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { deriveCatalog } from "../src/derive";
-import { validateAll } from "../src/validate";
+import { validateAll, validatePlacement } from "../src/validate";
 import type { WorkspacePlugin } from "../src/types";
 
 const fixture: WorkspacePlugin[] = [
@@ -37,6 +40,24 @@ test("a reserved marketplace name is rejected", async () => {
   const cat = deriveCatalog(fixture, { ...opts, name: "anthropic-plugins" });
   const issues = await validateAll(fixture, cat);
   expect(issues.some((i) => i.message.includes("reserved"))).toBe(true);
+});
+
+test("placement lint flags a component dir (incl. output-styles) inside .claude-plugin/", async () => {
+  const root = await mkdtemp(join(tmpdir(), "place-"));
+  try {
+    const dir = join(root, "misplaced");
+    // The forbidden case: output-styles/ nested under .claude-plugin/ instead of root.
+    await mkdir(join(dir, ".claude-plugin", "output-styles"), { recursive: true });
+    const plugins: WorkspacePlugin[] = [
+      { manifest: { name: "misplaced" }, dir, relDir: "misplaced" },
+    ];
+    const issues = await validatePlacement(plugins);
+    expect(
+      issues.some((i) => i.level === "error" && i.message.includes("output-styles")),
+    ).toBe(true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("a non-string repository is rejected", async () => {
