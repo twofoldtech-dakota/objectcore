@@ -7,6 +7,8 @@
     "build:marketplace": "bun run scripts/build-marketplace.ts",
     "validate": "bun run scripts/build-marketplace.ts",
     "eval": "bun run scripts/eval.ts",
+    "eval:record": "bun run scripts/eval-record.ts",
+    "eval:trend": "bun run scripts/eval-trend.ts",
     "forge:scaffold": "bun run scripts/forge-scaffold.ts",
     "forge:meta": "bun run scripts/forge-meta.ts",
     "forge:improve": "bun run scripts/forge-improve.ts",

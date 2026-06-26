@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { scoreReport, compareScores, formatScore } from "../src/score";
+import { scoreReport, compareScores, formatScore, scoresEqual } from "../src/score";
 import type { EvalReport, EvalResult } from "../src/types";
 
 function report(results: EvalResult[], skipped: string[] = []): EvalReport {
@@ -60,6 +60,14 @@ test("compareScores: more fragile greens lowers health -> regression even while 
   const d = compareScores(before, after);
   expect(d.nearMissDelta).toBe(1);
   expect(d.verdict).toBe("regressed");
+});
+
+test("scoresEqual: true only when every field matches", () => {
+  const a = scoreReport(report([ok("a"), routed("x", 0.8)]));
+  const b = scoreReport(report([ok("a"), routed("x", 0.8)]));
+  const c = scoreReport(report([ok("a"), routed("x", 0.55)])); // x now fragile
+  expect(scoresEqual(a, b)).toBe(true);
+  expect(scoresEqual(a, c)).toBe(false);
 });
 
 test("compareScores: identical scores are unchanged", () => {

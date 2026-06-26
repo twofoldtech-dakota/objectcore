@@ -1,0 +1,57 @@
+name: record-eval-history
+
+# Append the gate-health score to metrics/eval-history.jsonl on merge to main, so the
+# OQ4 longitudinal trend (plans/009) accrues automatically at each shipped checkpoint.
+#
+# INERT until armed: the job runs only when the repo VARIABLE OBJECTCORE_RECORD_HISTORY
+# is set to "true" (Settings → Secrets and variables → Actions → Variables). "CI writes
+# back to the repo" is a deliberate opt-in — mirrors deploy.yml being inert until
+# FLY_API_TOKEN. Until armed this is a harmless skipped job.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "metrics/**" # don't react to our own recording commits (belt; [skip ci] is the suspenders)
+  workflow_dispatch: {}
+
+concurrency: record-eval-history-${{ github.ref }}
+
+permissions:
+  contents: write # to commit the appended history line back to main
+
+jobs:
+  record:
+    if: ${{ vars.OBJECTCORE_RECORD_HISTORY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      # Produce dist/eval-score.json (the judge runs when ANTHROPIC_API_KEY is set, which
+      # is what populates the graded fields). Tolerate a red gate — a regressed score is
+      # itself a datapoint worth recording.
+      - name: Eval gate
+        run: bun run eval || true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Record score (only if it moved)
+        run: bun run eval:record --if-changed --note "main @ ${{ github.sha }} (CI)"
+
+      - name: Commit the appended line
+        run: |
+          if git diff --quiet -- metrics/eval-history.jsonl; then
+            echo "score unchanged — nothing to commit."
+            exit 0
+          fi
+          git config user.name "objectcore-bot"
+          git config user.email "noreply@objectcore.ai"
+          git add metrics/eval-history.jsonl
+          git commit -m "chore(metrics): record eval-history for ${{ github.sha }} [skip ci]"
+          git push

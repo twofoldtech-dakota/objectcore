@@ -7,4 +7,5 @@ export * from "./activation";
 export * from "./delegation";
 export * from "./evidence";
 export * from "./score";
+export * from "./history";
 export * from "./runner";
