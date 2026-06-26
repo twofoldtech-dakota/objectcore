@@ -17,9 +17,11 @@
   *generate* them) AND stand up the **self-improving loop** (KB + eval feedback).
 - **Loop autonomy**: **checkpointed** — one item per iteration, gated, then pause
   for review/merge before the next (maintainer's choice).
-- **Progress**: F1 (KB) **built** on `feat/knowledge-base` (gate green, 9 plugins);
-  **F2 (hooks primitive + `kb-writer`) is next** — it gives the KB its automated
-  write surface.
+- **Progress**: F1 (KB) merged (9 plugins). F2 (hooks primitive + `kb-writer`)
+  **built** on `feat/hooks-primitive` (gate green, 10 plugins; forge now emits
+  hooks; loop write path dogfooded via `kb:add`). **F3 (subagents primitive +
+  `self-reflection` subagent) is next** — the lesson *generator* that turns eval
+  failures into KB entries.
 
 ## The self-improving loop these items assemble
 
@@ -48,7 +50,7 @@ Items F1–F4 are not independent — they snap together into one Reflexion/EDDO
 | ID | Item | Builds | Closes primitive gap | Self-improving role | Effort | Depends | Status |
 |----|------|--------|----------------------|---------------------|--------|---------|--------|
 | **F1** | **Knowledge base substrate** (FIRST) | `@objectcore/knowledge` (`KnowledgeStore` port + `FileKnowledgeStore`) over `knowledge/` (entries + generated `INDEX.md`); `kb:add`/`kb:index`/`kb:check` CLIs (`kb:check` in the gate); a `knowledge-base` governance meta-plugin (`/remember` + `curating-knowledge`) | — (substrate, not a CC primitive) | the store every other loop piece reads/writes | M | — | **DONE (pending review)** — branch `feat/knowledge-base`; storage is a port so DB (Turso) + MCP-resource are later adapters/seams |
-| **F2** | **Hooks primitive + `kb-writer` plugin** | teach `scaffold.ts` to emit `hooks/hooks.json` (+ types); a dogfooded plugin whose `Stop`/`PostToolUse` hook distills lessons into F1 and whose `SessionStart` hook reads them back | **hooks** (forge-generatable) | the write surface that feeds the KB (Reflexion long-term memory) | M–L | F1 | TODO |
+| **F2** | **Hooks primitive + `kb-writer` plugin** | `scaffold.ts` now emits `hooks/hooks.json` (PluginSpec.hooks; engine owns the `{hooks:{...}}` wrapper; validates events/action-types; forge tests); a hooks-only `kb-writer` plugin: `SessionStart` command surfaces `knowledge/INDEX.md` into context, `Stop` prompt nudges lesson capture | **hooks** (forge-generatable) | the read/write surface around the KB (Reflexion long-term memory) | M–L | F1 | **DONE (pending review)** — branch `feat/hooks-primitive`; kb-writer is hooks-only to avoid an activation clash with `curating-knowledge` |
 | **F3** | **Subagents primitive + `self-reflection` subagent** | teach `scaffold.ts` to emit `agents/*.md` (OMIT `hooks`/`mcpServers`/`permissionMode`); a subagent that converts failing activation/output evals into structured KB entries | **subagents** (forge-generatable) | Reflexion's Self-Reflection model (lesson generator) | M | F1 | TODO |
 | **F4** | **EDDOps eval-loop hardening** | promote the terminal eval gate to a continuous governing function: capture structured eval evidence (pass/fail, near-misses) → write to F1 → forge consumes prior lessons on next generation | — (extends existing eval gate) | turns the one-shot gate into a feedback loop | M | F1, F3 | TODO |
 | **F5** | **MCP primitive in forge** | scaffold `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}`, behind the existing publish-time provenance/attestation gate | **MCP** (forge-generatable) | extends generatable set; enables tool-bearing plugins | M–L | F2 | TODO |
