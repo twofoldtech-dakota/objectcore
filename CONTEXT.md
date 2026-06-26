@@ -21,7 +21,7 @@ Single definitions so every generator and human speaks one vocabulary.
 - **Provenance** — a build attestation for a published artifact. A plugin that bundles an MCP
   server is a managed credential and must not publish without it.
 - **Registry** — whatever serves `marketplace.json` over a stable URL. The URL is permanent
-  (`objectcore.ai/v1/marketplace.json`); the server swaps. Dev loop: Git + the Hono app. Stage 3:
+  (`registry.objectcore.ai/v1/marketplace.json`); the server swaps. Dev loop: Git + the Hono app. Stage 3:
   the same Hono app on Fly.io reading the registry DB. It always serves the SHA-pinned form.
 - **Source / Sink** — the registry-core ports. `CatalogSource` reads plugins (`GitWorkspaceSource`
   off disk; `RegistryDbSource` from the DB at Stage 3); `CatalogSink` publishes the catalog

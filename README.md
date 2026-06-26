@@ -3,7 +3,7 @@
 A self-replicating Claude Code plugin marketplace, built as a software factory.
 **The output is not plugins — it's the system that produces and governs plugins.**
 
-- Marketplace name: `objectcore` · Registry host (eventual): `objectcore.ai`
+- Marketplace name: `objectcore` · Registry host: `registry.objectcore.ai` (apex `objectcore.ai` reserved for the marketing site)
 - Runtime: Bun + TypeScript · Monorepo: Bun workspaces (+ Turborepo) · Versioning: Changesets
 
 ## Architecture (the seam)
@@ -18,7 +18,7 @@ deriveCatalog(plugins) -> marketplace.json
 - **Now (Git era):** CI runs `deriveCatalog` reading `./plugins/*` and writes the file
   (`GitWorkspaceSource` + `GitFileSink`). The Hono app serves it locally as the dev loop.
 - **Stage 3 (backend):** the SAME `deriveCatalog` runs in a Hono handler reading the DB and
-  serving `objectcore.ai/v1/marketplace.json` (`RegistryDbSource` + HTTP). The contract and the
+  serving `registry.objectcore.ai/v1/marketplace.json` (`RegistryDbSource` + HTTP). The contract and the
   route do not change — only the source and sink swap. That is what keeps it from being a rewrite.
 
 The HTTP adapter runs on every dev loop and the same contract tests run on every CI run, so the

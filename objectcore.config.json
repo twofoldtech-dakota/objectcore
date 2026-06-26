@@ -3,5 +3,5 @@
   "owner": { "name": "twofoldtech-dakota" },
   "pluginRoot": "./plugins",
   "schema": "https://objectcore.ai/schemas/marketplace.json",
-  "registryUrl": "https://objectcore.ai/v1/marketplace.json"
+  "registryUrl": "https://registry.objectcore.ai/v1/marketplace.json"
 }
