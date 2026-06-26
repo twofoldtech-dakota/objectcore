@@ -7,6 +7,7 @@
       "dependencies": {
         "@objectcore/eval": "workspace:*",
         "@objectcore/forge": "workspace:*",
+        "@objectcore/knowledge": "workspace:*",
         "@objectcore/registry-core": "workspace:*",
         "@objectcore/registry-db": "workspace:*",
         "@objectcore/release": "workspace:*",
@@ -35,6 +36,14 @@
         "@objectcore/eval": "workspace:*",
         "@objectcore/registry-core": "workspace:*",
       },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5.6.0",
+      },
+    },
+    "packages/knowledge": {
+      "name": "@objectcore/knowledge",
+      "version": "0.0.1",
       "devDependencies": {
         "@types/bun": "latest",
         "typescript": "^5.6.0",
@@ -111,6 +120,8 @@
     "@objectcore/eval": ["@objectcore/eval@workspace:packages/eval"],
 
     "@objectcore/forge": ["@objectcore/forge@workspace:packages/forge"],
+
+    "@objectcore/knowledge": ["@objectcore/knowledge@workspace:packages/knowledge"],
 
     "@objectcore/registry-core": ["@objectcore/registry-core@workspace:packages/registry-core"],
 

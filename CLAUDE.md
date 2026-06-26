@@ -26,7 +26,10 @@ bun run release:status           # Stage 2: preview what the pending changesets 
 bun run release:version          # Stage 2: consume changesets -> bump plugin.json + changelogs + re-derive
 bun run release:publish          # Stage 2: tag {plugin}--v{semver}, SHA-pin the catalog, (CI) attest
 bun run check:catalog            # read-only: validate every plugin + assert marketplace.json is in sync (no writes)
-bun run check                    # the one-command gate = tsc + check:catalog + test + eval (what CI runs)
+bun run kb:add --json '<entry>'  # append a knowledge-base entry (lesson|pattern|gotcha|decision) + regenerate INDEX.md
+bun run kb:index                 # regenerate knowledge/INDEX.md from knowledge/entries/ (INDEX.md is a build artifact)
+bun run kb:check                 # read-only: parse entries + assert INDEX.md is in sync and within budget (part of check)
+bun run check                    # the one-command gate = tsc + check:catalog + kb:check + test + eval (what CI runs)
 bun run clean:git                # git hygiene: prune stale worktrees + delete merged branches (--dry-run | --gone | --remote)
 bun run registry:dev            # serve http://localhost:8787/v1/marketplace.json (Git source, dev loop)
 bun run registry:prod           # Stage 3: serve the SHA-pinned catalog from the registry DB (RegistryDbSource); OBJECTCORE_SOURCE=db|file
@@ -161,6 +164,32 @@ Stage 3 operates the HTTP backend and flips the catalog source from Git to a DB 
 - **Prod deploy safety.** `prod.ts` runs `store.migrate()` on boot (idempotent) and exposes a
   DB-touching `/readyz` (Fly's health check points at it, not the shallow `/healthz`), so a deploy
   against a fresh/unreachable DB fails the check instead of serving 500s.
+
+### knowledge base + `@objectcore/knowledge` (Stage F1, self-improvement)
+
+The factory's growing memory — the substrate the self-improving loop is built on
+(roadmap: `plans/008-foundational-agentic-roadmap.md`, evidence:
+`plans/notes/008-agentic-research-findings.md`). It applies the same **storage-is-a-port**
+discipline as the catalog: `KnowledgeStore` (`packages/knowledge/src/types.ts`) is
+the seam; **`FileKnowledgeStore`** is operated now (git-tracked `knowledge/entries/<id>.md`,
+one frontmatter'd file per entry, diffable in PRs so every written lesson is
+reviewable). A `DbKnowledgeStore` (Turso, reusing `@objectcore/registry-db`) and an
+**MCP resource server** (an *access* seam over a store, the KB's analogue of the
+`/v1/marketplace.json` route — folds into the F5 MCP primitive) are later adapters;
+nothing above the port changes when they land.
+
+- **`knowledge/INDEX.md` is a build artifact**, like `marketplace.json`: generated
+  by `renderIndex` (pure) via `bun run kb:index`, never hand-edited. `bun run kb:check`
+  (in `bun run check`) parses every entry and asserts INDEX.md byte-matches a fresh
+  render and stays within the **200-line / 25KB** loaded-at-startup budget — overflow
+  is the deliberate curate/prune (rot) signal.
+- **Entry types**: `lesson | pattern | gotcha | decision`. Zero-dep frontmatter
+  parse/serialize (`frontmatter.ts`), keeping the package pure like registry-core.
+- **`knowledge-base`** (`plugins/knowledge-base/`, governance meta-plugin) is the
+  human/agent runbook: `/remember` + the `curating-knowledge` skill over the store.
+  The automated write path (F2 `kb-writer` hook on `Stop`/`PostToolUse`, F3
+  `self-reflection` subagent turning eval failures into entries) calls the same
+  `KnowledgeStore.append` — closing the Reflexion loop on this substrate.
 
 ### Repo CLI wiring (`scripts/_workspace.ts`, `scripts/_finalize.ts`)
 

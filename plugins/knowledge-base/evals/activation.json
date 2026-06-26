@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "We just learned that plugin-shipped agents can't include hooks — capture that lesson in the knowledge base.",
+      "expect": "curating-knowledge",
+      "note": "positive — capturing a durable lesson"
+    },
+    {
+      "prompt": "Record the decision to keep knowledge-base storage behind a port (files now, DB later) as a knowledge entry.",
+      "expect": "curating-knowledge",
+      "note": "positive — recording a decision"
+    },
+    {
+      "prompt": "What's the capital of France?",
+      "expect": null,
+      "note": "clear negative"
+    },
+    {
+      "prompt": "Remind me to call the dentist tomorrow at 3pm.",
+      "expect": null,
+      "note": "confusability negative — 'remind/remember' vocabulary but a personal reminder, not a durable engineering lesson; must NOT fire curating-knowledge"
+    }
+  ]
+}
