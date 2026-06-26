@@ -1,6 +1,6 @@
 ---
 name: forge-improver
-description: Use to propose a behavior-preserving or quality refinement to ObjectCore's forge scaffolder code itself — packages/forge/src/scaffold.ts (the generator's default bodies, frontmatter serialization, or emit logic). Delegate when someone asks to improve, clean up, or refine HOW forge emits plugins. Do NOT delegate to fix a specific plugin's description (that is self-reflection's job) and NOT to add a new primitive or spec field (that is human-authored Tier B work).
+description: Use to edit the forge scaffolder's own source code (packages/forge/src/scaffold.ts) — its default body text, frontmatter serialization, or file-emit logic — when asked to refine HOW forge generates plugin files. Strictly a code-editing task on the generator. This is NOT for diagnosing eval or gate failures (that is self-reflection) and NOT for adding a new component primitive or spec field (human-authored). Delegate only for behavior-preserving changes to scaffold.ts itself.
 tools: Read, Edit, Grep, Glob, Bash
 isolation: worktree
 ---
