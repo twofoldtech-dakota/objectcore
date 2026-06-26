@@ -67,7 +67,20 @@ The same split as `deriveCatalog`'s sources/sinks and the eval `Judge`:
 - [x] `POST /v1/plugins` in `createApp` (verify → authz → parse → provenance → write); wired inert in `prod.ts`.
 - [x] Tests: authz + parse (registry-core), route 201/401/403/400/422/404 + provenance gate (registry-server, `MockOidcVerifier` + `InMemoryCatalogStore`).
 - [x] `bun run check` green; `marketplace.json` byte-unchanged.
-- [ ] Reviewed + merged (the checkpoint).
+- [x] Reviewed + merged (PR #17).
+
+## Operational status — ARMED & LIVE (2026-06-26)
+
+Self-service publishing is turned on. **Server** (Fly secrets):
+`OBJECTCORE_OIDC_AUDIENCE=https://registry.objectcore.ai`,
+`OBJECTCORE_PUBLISH_REPOS=twofoldtech-dakota/objectcore` (issuer left default = GitHub
+Actions). **Publisher** (GitHub repo variables): `OBJECTCORE_REGISTRY_URL` +
+`OBJECTCORE_OIDC_AUDIENCE`, both `https://registry.objectcore.ai` (the audience must match
+both sides). Verified: `POST /v1/plugins` → 401 for a missing/bad token (was 404 when inert).
+The real 201 path needs a genuine GitHub Actions OIDC token, so it dogfoods on each merge to
+main via the `registry:publish` step (sequenced AFTER `registry:ingest`, so a hiccup is
+cosmetic). *Op gotcha:* Fly `auto_stop_machines` means a staged secret needs a forced redeploy
+(`gh workflow run deploy.yml`) to apply on a warm machine.
 
 ## Publisher side — BUILT (the dogfood)
 
