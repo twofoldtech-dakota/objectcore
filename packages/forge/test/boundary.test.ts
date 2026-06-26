@@ -21,9 +21,11 @@ test("classifyPath: the gate, seam, spec contract, and corpus are TCB", () => {
   expect(classifyPath(".github/workflows/ci.yml")).toBe("tcb");
   // The enforcer must not be able to move its own fence.
   expect(classifyPath("packages/forge/src/boundary.ts")).toBe("tcb");
-  // Nor edit what decides its own admission.
+  // Nor edit what decides its own admission, nor the backlog scanner.
   expect(classifyPath("packages/forge/src/improve.ts")).toBe("tcb");
   expect(classifyPath("scripts/forge-improve.ts")).toBe("tcb");
+  expect(classifyPath("packages/forge/src/suggest.ts")).toBe("tcb");
+  expect(classifyPath("scripts/forge-suggest.ts")).toBe("tcb");
 });
 
 test("classifyPath: anything else is 'other' (default-deny — not silently allowed)", () => {

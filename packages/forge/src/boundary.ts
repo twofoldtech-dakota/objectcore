@@ -36,6 +36,8 @@ export const TCB_SURFACE: readonly { prefix: string; reason: string }[] = [
   { prefix: "packages/forge/src/types.ts", reason: "the PluginSpec contract — expanding it is a human (Tier B) decision" },
   { prefix: "packages/forge/src/improve.ts", reason: "the admission pipeline — the optimizer must not edit what decides its own admission" },
   { prefix: "scripts/forge-improve.ts", reason: "the admission pipeline CLI" },
+  { prefix: "packages/forge/src/suggest.ts", reason: "the improvability backlog scanner — read-only over the mutable surface" },
+  { prefix: "scripts/forge-suggest.ts", reason: "the improvability backlog CLI" },
   { prefix: "packages/forge/test/", reason: "the meta-eval corpus — the golden snapshots ARE the definition of correct" },
   { prefix: "objectcore.config.json", reason: "marketplace identity" },
   { prefix: ".github/", reason: "CI — the gate's enforcement point" },

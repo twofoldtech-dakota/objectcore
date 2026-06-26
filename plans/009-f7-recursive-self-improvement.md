@@ -183,20 +183,50 @@ deliberately narrow and widens only as trust is earned.
    it never self-merges (Pillar 4). A human asks for the refinement (no auto-trigger).
    *This is "forge proposes/refines its own scaffolding code, strictly eval-gated" —
    the meaningful core of F7, delivered safe and bounded.*
-3. **Phase 2 — autonomous trigger (DEFERRED, by design).** Auto-*proposing* a
-   scaffolder refinement (never applying) needs a trustworthy signal. The EDDOps
-   evidence file (`dist/eval-evidence.json`) is the wrong one: its failures/near-misses
-   are about *plugin trigger surfaces* (a skill/agent `description`), which is
-   `self-reflection`'s lesson domain — **not** a `scaffold.ts` code-quality signal. So
-   the honest autonomous trigger for a *generator* refinement is a meta-eval regression
-   or a measurable generator-quality signal (open question 4), not the eval hook.
-   Wiring a `forge-improver` hook onto the eval evidence would be a signal mismatch;
-   deferred until a real signal exists.
-4. **Phase 3 (research) — widen autonomy** only as the corpus proves it can be
-   trusted, and only for Tier A. Tier B stays human-authored indefinitely.
+3. **Phase 2 — the trigger surface. PARTIALLY BUILT on `feat/f7-phase2`.** The
+   **declared-improvability backlog** is built: the scaffolder marks a known-suboptimal
+   default with a `forge:improvable — <reason>` comment (the scaffolder analogue of the
+   `forge:todo` stub marker), and a pure scanner (`packages/forge/src/suggest.ts` +
+   `bun run forge:suggest`) harvests them into a deterministic, gate-safe backlog the
+   loop reads before delegating `forge-improver`. This turns Phase 1 (a human notices)
+   into "the system surfaces its own candidates." **Still deferred:** a *learned* signal
+   (open question 4 — do refinements measurably raise later eval pass rates?) and
+   *autonomous execution* (below). The EDDOps evidence file stays the wrong trigger for a
+   *generator* refinement — its failures/near-misses are about *plugin trigger surfaces*
+   (`self-reflection`'s lesson domain), not `scaffold.ts` quality. A *declared* backlog is
+   honest about being a seeded worklist; it does not pretend to be learned.
+4. **Phase 3 — autonomous execution + widening autonomy (RESEARCH; designed, not
+   built; see the sketch below).** Widen the optimizer's reach only as the corpus and a
+   real quality signal prove it can be trusted, and only for Tier A. **Tier B stays
+   human-authored indefinitely.**
 
-Phases 2–3 each remain their own gated, checkpointed step; **none starts without the
-maintainer re-approving.** Phase 0 + Phase 1 are built.
+Phases 2 (the rest) and 3 each remain their own gated, checkpointed step; **none starts
+without the maintainer re-approving.** Phase 0, Phase 1, and Phase 2's trigger surface
+are built.
+
+### The autonomous executor (designed, NOT built — the Phase 3 frontier)
+
+A future `bun run forge:improve --auto` (or a workflow) would close the loop without a
+human kicking it off:
+
+1. read `bun run forge:suggest`'s backlog and pick a candidate;
+2. spawn `forge-improver` in a **worktree** to implement *only* that candidate (the
+   boundary already forbids it from leaving `scaffold.ts`);
+3. run the admission pipeline (`bun run forge:improve`) — boundary → meta-eval → full gate;
+4. on **ADMITTED**, open a PR for human review; on **REJECTED**, discard the worktree and
+   record the verdict (and, if a golden flipped, surface it for re-blessing).
+
+**Why it is deliberately not built here:**
+- It requires a live model (an API key) and is non-deterministic, so — unlike the
+  boundary, admission, and backlog bricks — it cannot be *gate-tested* the way the rest of
+  F7 is. Shipping it green would mean shipping something the gate can't actually exercise.
+- Pillar 4 already forbids self-merge: a human reviews **every** engine self-edit. So the
+  autonomous executor's gain over human-initiated Phase 1 is *convenience, not capability* —
+  it does not change what the system is allowed to do, only who presses start.
+- The honest precondition is **open question 4**: until a learned signal shows that a given
+  refinement actually *helps* (not merely *passes*), auto-proposing is churn. The safe,
+  testable bricks are built; turning on the thin, key-gated orchestration should wait for
+  that signal.
 
 ## This plan's deliverable & done criteria
 
