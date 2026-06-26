@@ -174,18 +174,29 @@ deliberately narrow and widens only as trust is earned.
    edit the TCB legitimately every day; it applies only to an *automated* self-edit
    proposal (the Phase-1 proposer flow). *This was the highest-value, lowest-risk
    first step and hardens the engine even if F7 never proceeds.*
-2. **Phase 1 — Tier-A refinement, human-driven.** A `forge-improver` agent +
-   worktree flow that proposes a behavior-preserving refinement, gated by Phase 0's
-   corpus, surfaced as a PR. No automatic trigger yet — a human asks for a specific
-   refinement.
-3. **Phase 2 — close the loop to EDDOps evidence.** Let a red gate / near-miss in
-   `dist/eval-evidence.json` *propose* (never apply) a Tier-A refinement, still
-   PR-gated. This is the actual Self-Developing loop, fully bounded.
+2. **Phase 1 — Tier-A refinement, human-driven. BUILT on `feat/f7-phase0`.** The
+   `forge-improver` subagent (`plugins/forge-improver/`, `isolation: worktree`,
+   Tier-A discipline in its system prompt) proposes a behavior-preserving refinement
+   to `scaffold.ts`; the eval-gated **admission pipeline** (`packages/forge/src/improve.ts`
+   + `bun run forge:improve`) enforces the boundary, then runs the full gate, then
+   reports ADMITTED/REJECTED. The agent surfaces an admitted diff for human review —
+   it never self-merges (Pillar 4). A human asks for the refinement (no auto-trigger).
+   *This is "forge proposes/refines its own scaffolding code, strictly eval-gated" —
+   the meaningful core of F7, delivered safe and bounded.*
+3. **Phase 2 — autonomous trigger (DEFERRED, by design).** Auto-*proposing* a
+   scaffolder refinement (never applying) needs a trustworthy signal. The EDDOps
+   evidence file (`dist/eval-evidence.json`) is the wrong one: its failures/near-misses
+   are about *plugin trigger surfaces* (a skill/agent `description`), which is
+   `self-reflection`'s lesson domain — **not** a `scaffold.ts` code-quality signal. So
+   the honest autonomous trigger for a *generator* refinement is a meta-eval regression
+   or a measurable generator-quality signal (open question 4), not the eval hook.
+   Wiring a `forge-improver` hook onto the eval evidence would be a signal mismatch;
+   deferred until a real signal exists.
 4. **Phase 3 (research) — widen autonomy** only as the corpus proves it can be
    trusted, and only for Tier A. Tier B stays human-authored indefinitely.
 
-Each phase is its own gated, checkpointed plan. **Nothing past Phase 0 starts
-without the maintainer re-approving this design.**
+Phases 2–3 each remain their own gated, checkpointed step; **none starts without the
+maintainer re-approving.** Phase 0 + Phase 1 are built.
 
 ## This plan's deliverable & done criteria
 

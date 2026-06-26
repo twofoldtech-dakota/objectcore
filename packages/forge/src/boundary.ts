@@ -34,6 +34,8 @@ export const TCB_SURFACE: readonly { prefix: string; reason: string }[] = [
   { prefix: "scripts/check-catalog.ts", reason: "the catalog-sync gate" },
   { prefix: "packages/registry-core/", reason: "the derive/validate seam + validation floor" },
   { prefix: "packages/forge/src/types.ts", reason: "the PluginSpec contract — expanding it is a human (Tier B) decision" },
+  { prefix: "packages/forge/src/improve.ts", reason: "the admission pipeline — the optimizer must not edit what decides its own admission" },
+  { prefix: "scripts/forge-improve.ts", reason: "the admission pipeline CLI" },
   { prefix: "packages/forge/test/", reason: "the meta-eval corpus — the golden snapshots ARE the definition of correct" },
   { prefix: "objectcore.config.json", reason: "marketplace identity" },
   { prefix: ".github/", reason: "CI — the gate's enforcement point" },

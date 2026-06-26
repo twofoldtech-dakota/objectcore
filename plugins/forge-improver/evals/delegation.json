@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "The default skill body that forge scaffolds is wordier than it needs to be. Propose a tighter version in the scaffolder, keeping every emitted plugin otherwise identical.",
+      "expect": "forge-improver",
+      "note": "canonical Tier-A trigger: a behavior-preserving quality refinement to scaffold.ts's generated body"
+    },
+    {
+      "prompt": "Refine how the forge engine serializes agent frontmatter — the emit logic in the scaffolder could be cleaner. Don't change what it produces.",
+      "expect": "forge-improver",
+      "note": "another Tier-A refinement of HOW forge emits, behavior-preserving"
+    },
+    {
+      "prompt": "Add a brand-new component primitive to the forge spec and engine so it can scaffold a new kind of file.",
+      "expect": null,
+      "note": "Tier B — a new spec field/primitive is human-authored; forge-improver must NOT grab it despite being forge-related"
+    },
+    {
+      "prompt": "Summarize what the ObjectCore repository does for a new contributor.",
+      "expect": null,
+      "note": "a plain question — nothing should delegate to forge-improver"
+    }
+  ]
+}

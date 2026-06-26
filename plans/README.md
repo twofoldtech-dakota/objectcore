@@ -20,7 +20,7 @@ honor its STOP conditions, and update your row below when done.
 | 006 | Eval gate — ship-readiness: require a negative case + fail unfilled (`forge:todo`) bodies | P2 | S–M | 005 | DONE (merged to main `f280fb0`) |
 | 007 | Forge prose — trigger-surface recipe, case budget, category vocab, real body | P3 | S | 006 | DONE (merged to main `5d449d3`) |
 | 008 | **Epic: foundational agentic pieces** — KB + hooks/subagents/MCP primitives + EDDOps eval loop (build-loop backlog) | P1 | L (multi-item) | — | F1–F6 **DONE/merged** (11 plugins; forge-generatable primitive set complete). Only **F7** (stretch) remains, now **DESIGNED** in plan 009 (build deferred). Worklist in `008-foundational-agentic-roadmap.md` |
-| 009 | **F7** — the safe gating boundary for forge self-improvement (answers research open question 5) + Phase 0 | P1 | S (design) + M (Phase 0) | 008/F4 | DESIGN done; **Phase 0 BUILT** on `feat/f7-phase0` (meta-eval golden + guard corpus, default-deny boundary enforcer). Phases 1+ (the proposer/optimizer) deferred pending review. |
+| 009 | **F7** — recursive self-improvement of the forge engine, strictly eval-gated (design + Phases 0–1) | P1 | S (design) + M (Phase 0) + M (Phase 1) | 008/F4 | DESIGN done; **Phases 0 + 1 BUILT** on `feat/f7-phase0`: meta-eval golden + guard corpus, default-deny boundary enforcer, the `forge-improver` proposer subagent, and the eval-gated admission pipeline (`bun run forge:improve`). Catalog → 12 plugins. Phase 2 (autonomous trigger) deferred by design; Phase 3 (widen autonomy) is the research frontier. |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 

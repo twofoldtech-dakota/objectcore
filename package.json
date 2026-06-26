@@ -9,6 +9,7 @@
     "eval": "bun run scripts/eval.ts",
     "forge:scaffold": "bun run scripts/forge-scaffold.ts",
     "forge:meta": "bun run scripts/forge-meta.ts",
+    "forge:improve": "bun run scripts/forge-improve.ts",
     "release:status": "bun run scripts/release-status.ts",
     "release:version": "bun run scripts/release-version.ts",
     "release:publish": "bun run scripts/release-publish.ts",
