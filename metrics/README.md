@@ -24,6 +24,16 @@ The pure parse/serialize/summarize logic is `@objectcore/eval` `history.ts`; tre
 
 The confidence-bearing fields (`graded`, `confidenceMargin`, `nearMisses`) only populate
 when the judge ran (an API key is present) — i.e. **in CI**, not local dev. The seeded
-baseline is main's CI score after PR #15. **Follow-up (ops):** have CI run
-`bun run eval:record` on merges to `main` and commit the appended line back, so the trend
-accrues automatically at every shipped checkpoint instead of by hand.
+baseline is main's CI score after PR #15.
+
+## Auto-recording in CI (inert until armed)
+
+`.github/workflows/record-history.yml` runs on merge to `main`, records the score
+(`eval:record --if-changed`, so it logs inflection points, not an entry per merge), and
+commits the appended line back. It is **inert until armed** — like `deploy.yml` — because
+"CI writes back to the repo" is a deliberate opt-in.
+
+**To arm it:** set the repo variable `OBJECTCORE_RECORD_HISTORY=true` (Settings → Secrets
+and variables → Actions → **Variables**). Until then the job is a harmless skip. Note: if
+`main` is a protected branch, allow the Actions bot to push (or the auto-commit will fail);
+the commit uses `[skip ci]` and the trigger ignores `metrics/**`, so it can't loop.

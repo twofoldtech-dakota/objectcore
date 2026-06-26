@@ -97,6 +97,20 @@ export function compareScores(before: EvalScore, after: EvalScore): ScoreDelta {
   return { verdict, healthDelta, failedDelta, nearMissDelta, marginDelta };
 }
 
+/** Structural equality over the meaningful score fields — used by `eval:record
+ *  --if-changed` to avoid logging an identical health datapoint on every merge. */
+export function scoresEqual(a: EvalScore, b: EvalScore): boolean {
+  return (
+    a.passed === b.passed &&
+    a.failed === b.failed &&
+    a.warnings === b.warnings &&
+    a.nearMisses === b.nearMisses &&
+    a.graded === b.graded &&
+    a.confidenceMargin === b.confidenceMargin &&
+    a.health === b.health
+  );
+}
+
 /** A compact, human/agent-readable line for a score. */
 export function formatScore(s: EvalScore): string {
   const margin = s.confidenceMargin === null ? "n/a" : s.confidenceMargin.toFixed(3);

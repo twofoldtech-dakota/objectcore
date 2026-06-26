@@ -206,13 +206,20 @@ deliberately narrow and widens only as trust is earned.
      also built (`feat/oq4-score-history`): `history.ts` + `bun run eval:record` /
      `bun run eval:trend` append each run's score to the git-tracked
      `metrics/eval-history.jsonl` and report the overall/last-step trend — so "is the
-     factory getting healthier over time?" is answerable. **Still deferred:** auto-recording
-     in CI on merge to `main` (an ops wiring step — commit the appended line back), and the
-     autonomous executor (below).
-4. **Phase 3 — autonomous execution + widening autonomy (RESEARCH; designed, not
-   built; see the sketch below).** Widen the optimizer's reach only as the corpus and a
-   real quality signal prove it can be trusted, and only for Tier A. **Tier B stays
-   human-authored indefinitely.**
+     factory getting healthier over time?" is answerable. **CI auto-recording is built but
+     inert** (`.github/workflows/record-history.yml`): on merge to `main` it records
+     (`eval:record --if-changed`) and commits the line back, armed only when the repo
+     variable `OBJECTCORE_RECORD_HISTORY=true` is set — the same inert-until-armed pattern
+     as `deploy.yml`, because "CI writes to the repo" is a deliberate opt-in. **The
+     autonomous executor (below) is deferred by the maintainer** — *not needed now;
+     possibly later.*
+4. **Phase 3 — autonomous execution + widening autonomy (RESEARCH; designed, not built;
+   PARKED by the maintainer 2026-06-26 — "not needed now, maybe later").** Widen the
+   optimizer's reach only as the corpus and a real quality signal prove it can be trusted,
+   and only for Tier A. **Tier B stays human-authored indefinitely.** The signals it would
+   need (single-step + longitudinal) now exist; what's intentionally not built is the
+   unattended orchestration — by design it adds *convenience, not capability* (Pillar 4
+   still requires a human to review every self-edit).
 
 Phases 2 (the rest) and 3 each remain their own gated, checkpointed step; **none starts
 without the maintainer re-approving.** Phase 0, Phase 1, and Phase 2's trigger surface
