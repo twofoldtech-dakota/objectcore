@@ -1,0 +1,12 @@
+{
+  ".claude-plugin/plugin.json": "{\n  \"name\": \"golden-full\",\n  \"version\": \"1.2.3\",\n  \"description\": \"A plugin exercising every emit branch.\",\n  \"author\": {\n    \"name\": \"twofoldtech-dakota\"\n  },\n  \"license\": \"Apache-2.0\",\n  \"keywords\": [\n    \"objectcore\",\n    \"full\"\n  ],\n  \"category\": \"workflow\",\n  \"repository\": \"https://github.com/twofoldtech-dakota/objectcore\"\n}\n",
+  "agents/worker.md": "---\nname: worker\ndescription: Delegate when Y.\nmodel: claude-haiku-4-5\ntools: Read, Grep\n---\n# Worker\n\nReal agent body.\n",
+  "commands/do-cmd.md": "---\ndescription: Do the cmd.\n---\n# /do-cmd\n\nCustom body.\n",
+  "evals/activation.json": "{\n  \"cases\": [\n    {\n      \"prompt\": \"do X\",\n      \"expect\": \"main-skill\"\n    },\n    {\n      \"prompt\": \"no\",\n      \"expect\": null\n    }\n  ]\n}\n",
+  "evals/delegation.json": "{\n  \"cases\": [\n    {\n      \"prompt\": \"do Y\",\n      \"expect\": \"worker\"\n    },\n    {\n      \"prompt\": \"no\",\n      \"expect\": null\n    }\n  ]\n}\n",
+  "evals/output.json": "{\n  \"expectEntry\": {\n    \"version\": \"1.2.3\",\n    \"category\": \"workflow\"\n  }\n}\n",
+  "hooks/hooks.json": "{\n  \"hooks\": {\n    \"PostToolUse\": [\n      {\n        \"matcher\": \"Bash\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"echo done\"\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+  "output-styles/styled.md": "---\nname: styled\ndescription: A style.\nkeep-coding-instructions: true\n---\n# Styled\n\nStyle body.\n",
+  "settings.json": "{\n  \"agent\": \"worker\"\n}\n",
+  "skills/main-skill/SKILL.md": "---\nname: main-skill\ndescription: Use when X.\n---\n# Main Skill\n\nReal body.\n"
+}

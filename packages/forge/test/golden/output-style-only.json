@@ -1,0 +1,5 @@
+{
+  ".claude-plugin/plugin.json": "{\n  \"name\": \"golden-output-style\",\n  \"version\": \"0.0.1\",\n  \"description\": \"An output-style-only plugin.\",\n  \"license\": \"MIT\"\n}\n",
+  "evals/output.json": "{\n  \"expectEntry\": {\n    \"version\": \"0.0.1\"\n  }\n}\n",
+  "output-styles/terse.md": "---\nname: terse\ndescription: Be terse.\n---\n# Terse\n\n<!-- forge:todo --> Replace this stub with the output style's system-prompt instructions —\nhow Claude should shape its responses when this style is active (tone, structure,\nwhat to emphasize or omit).\n"
+}

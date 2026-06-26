@@ -1,0 +1,6 @@
+{
+  ".claude-plugin/plugin.json": "{\n  \"name\": \"golden-agent\",\n  \"version\": \"0.0.1\",\n  \"description\": \"An agent-only plugin.\",\n  \"license\": \"MIT\"\n}\n",
+  "agents/helper.md": "---\nname: helper\ndescription: Delegate when the user needs deep help.\n---\n# Helper\n\n<!-- forge:todo --> Replace this stub with the agent's system prompt — its role, when\nit is delegated to, the steps it takes, and the exact shape of what it returns.\n",
+  "evals/delegation.json": "{\n  \"cases\": [\n    {\n      \"prompt\": \"I need deep help\",\n      \"expect\": \"helper\"\n    },\n    {\n      \"prompt\": \"unrelated\",\n      \"expect\": null\n    }\n  ]\n}\n",
+  "evals/output.json": "{\n  \"expectEntry\": {\n    \"version\": \"0.0.1\"\n  }\n}\n"
+}

@@ -195,6 +195,7 @@ is the trigger surface (it decides firing); this body is what runs once the skil
 `;
 }
 
+// forge:improvable — defaultCommandBody only echoes the description; a richer default (a "what it does" line + an example invocation stub) would lift every scaffolded command's baseline quality. Behavior-preserving refinement candidate (plan 009 Phase 2).
 function defaultCommandBody(c: ComponentSpec): string {
   return `# /${c.name}
 
