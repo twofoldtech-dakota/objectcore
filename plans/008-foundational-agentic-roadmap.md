@@ -17,14 +17,17 @@
   *generate* them) AND stand up the **self-improving loop** (KB + eval feedback).
 - **Loop autonomy**: **checkpointed** — one item per iteration, gated, then pause
   for review/merge before the next (maintainer's choice).
-- **Progress**: F1 (KB) + F2 (hooks + `kb-writer`) merged (10 plugins). F3
-  (subagents primitive + `reflection`/`self-reflection`) **built** on
-  `feat/subagents-primitive` (gate green, 11 plugins; forge now emits agents). The
-  Reflexion triangle is assembled: KB (F1) ← write surface (F2) ← lesson generator
-  (F3). **F4 (EDDOps eval-loop hardening) is next** — capture structured eval
-  evidence and auto-invoke `self-reflection` on failure, so the gate feeds the loop
-  instead of just blocking. (Gap to close in F4: agents currently enter the catalog
-  ungated on delegation quality — no agent-activation eval yet.)
+- **Progress**: F1 (KB) + F2 (hooks + `kb-writer`) + F3 (subagents + `reflection`)
+  merged (11 plugins). **F4 (EDDOps eval-loop hardening) is built** on
+  `feat/eddops-eval-loop` (gate green): the eval gate now (a) **closes the
+  agent-delegation gap** — an agent's `description` is a trigger surface gated exactly
+  like a skill's, via `evals/delegation.json` + coverage/readiness/judge (`delegation.ts`),
+  forge refusing an agent with no delegation case; and (b) emits **structured EDDOps
+  evidence** (`dist/eval-evidence.json`, `buildEvidence`) every run, which the
+  `reflection` plugin's new `PostToolUse` hook reads to **auto-invoke `self-reflection`
+  on a red gate**. The Reflexion/EDDOps loop is now closed: gate → evidence →
+  generator → KB. Two lessons captured through the loop's own `kb:add` (the stub-marker
+  gotcha + the trigger-surface-gating pattern). **F5 (MCP primitive) is next.**
 
 ## The self-improving loop these items assemble
 
@@ -55,7 +58,7 @@ Items F1–F4 are not independent — they snap together into one Reflexion/EDDO
 | **F1** | **Knowledge base substrate** (FIRST) | `@objectcore/knowledge` (`KnowledgeStore` port + `FileKnowledgeStore`) over `knowledge/` (entries + generated `INDEX.md`); `kb:add`/`kb:index`/`kb:check` CLIs (`kb:check` in the gate); a `knowledge-base` governance meta-plugin (`/remember` + `curating-knowledge`) | — (substrate, not a CC primitive) | the store every other loop piece reads/writes | M | — | **DONE (pending review)** — branch `feat/knowledge-base`; storage is a port so DB (Turso) + MCP-resource are later adapters/seams |
 | **F2** | **Hooks primitive + `kb-writer` plugin** | `scaffold.ts` now emits `hooks/hooks.json` (PluginSpec.hooks; engine owns the `{hooks:{...}}` wrapper; validates events/action-types; forge tests); a hooks-only `kb-writer` plugin: `SessionStart` command surfaces `knowledge/INDEX.md` into context, `Stop` prompt nudges lesson capture | **hooks** (forge-generatable) | the read/write surface around the KB (Reflexion long-term memory) | M–L | F1 | **DONE (pending review)** — branch `feat/hooks-primitive`; kb-writer is hooks-only to avoid an activation clash with `curating-knowledge` |
 | **F3** | **Subagents primitive + `self-reflection` subagent** | `scaffold.ts` now emits `agents/*.md` (AgentSpec; rejects `hooks`/`mcpServers`/`permissionMode`; tools serialized comma-separated; forge tests); a `reflection` plugin shipping the `self-reflection` subagent that diagnoses gate failures and writes durable lessons to the KB | **subagents** (forge-generatable) | Reflexion's Self-Reflection model (lesson generator) | M | F1 | **DONE (pending review)** — branch `feat/subagents-primitive`; agents-only plugin |
-| **F4** | **EDDOps eval-loop hardening** | promote the terminal eval gate to a continuous governing function: capture structured eval evidence (pass/fail, near-misses) → write to F1 → forge consumes prior lessons on next generation | — (extends existing eval gate) | turns the one-shot gate into a feedback loop | M | F1, F3 | TODO |
+| **F4** | **EDDOps eval-loop hardening** | the eval gate emits structured evidence (`dist/eval-evidence.json` via `buildEvidence`: failures + near-misses) every run; the `reflection` `PostToolUse` hook reads it and auto-invokes `self-reflection` on a red gate; the planning skill consults the KB on the way in; **agent-delegation gap closed** (`delegation.ts` + `evals/delegation.json`, gated like skills, forge-enforced) | — (extends existing eval gate) + **agent delegation** (now gated) | turns the one-shot gate into a closed feedback loop | M | F1, F3 | **DONE (pending review)** — branch `feat/eddops-eval-loop`; gate green; 2 lessons captured through the loop |
 | **F5** | **MCP primitive in forge** | scaffold `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}`, behind the existing publish-time provenance/attestation gate | **MCP** (forge-generatable) | extends generatable set; enables tool-bearing plugins | M–L | F2 | TODO |
 | **F6** | **Output-styles (+ minimal plugin settings) primitive** | scaffold `output-styles/`; whatever of `settings.json` (`agent`/`subagentStatusLine`) is packagable | **output styles** | rounds out coverage; low leverage | S each | F1 | TODO |
 | **F7** | **STRETCH — recursive self-improvement of the forge engine** | forge proposes/refines its own scaffolding code, strictly eval-gated (Self-Developing style) | — | the north star; research-grade | L | F4 | DEFERRED |

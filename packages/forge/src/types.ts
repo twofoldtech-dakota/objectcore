@@ -3,7 +3,7 @@
 // model produces a PluginSpec; scaffoldPlugin turns it into a real, gated plugin
 // on disk. Everything the scaffolder needs is here — no free-form generation.
 
-import type { ActivationCase } from "@objectcore/eval";
+import type { ActivationCase, DelegationCase } from "@objectcore/eval";
 
 /** A skill or command to emit. `body` is the markdown after frontmatter; if
  *  omitted, a conforming stub is generated. */
@@ -77,6 +77,9 @@ export interface PluginSpec {
   agents?: AgentSpec[];
   /** Activation eval cases. REQUIRED when the plugin ships skills. */
   activation?: ActivationCase[];
+  /** Delegation eval cases. REQUIRED when the plugin ships agents — every agent
+   *  must have a positive case (the agent analogue of the skill activation rule). */
+  delegation?: DelegationCase[];
   /** Optional output-eval expectations; defaults to asserting the version. */
   expectEntry?: Record<string, unknown>;
 }

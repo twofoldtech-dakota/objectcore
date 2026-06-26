@@ -15,14 +15,21 @@ return the structured output below. Do not weaken or delete eval cases to make a
 gate pass.
 
 ## Steps
-1. **Locate the failure.** From the gate output, identify which layer failed and the
-   exact case: validation, **output** eval (`evals/output.json` — version/keywords/
-   `expectEntry`), **coverage** (a skill with no positive case), **readiness**
-   (`has-negative-case` / `body-filled` / `forge:todo` stub), or **activation**
-   (a prompt routed to the wrong skill or fired when it should have stayed quiet).
+1. **Locate the failure.** Read the structured evidence the gate just wrote —
+   `dist/eval-evidence.json` (`failures[]` with `suite`/`plugin`/`name`/`detail`, plus
+   `nearMisses[]` — passed-but-fragile routes worth pre-empting). Identify which layer
+   failed and the exact case: validation, **output** eval (`evals/output.json` —
+   version/keywords/`expectEntry`), **coverage** (a skill with no positive activation
+   case, or an agent with no positive **delegation** case), **readiness**
+   (`has-negative-case` / `has-negative-delegation` / `body-filled` / `agent-body-filled`
+   / `forge:todo` stub), **activation** (a prompt routed to the wrong skill or fired
+   when it should have stayed quiet), or **delegation** (a prompt delegated to the wrong
+   subagent, or delegated when it should have stayed quiet).
 2. **Diagnose the root cause.** Name the mechanism, e.g.:
    - activation misroute → the skill `description` (trigger surface) is too broad or
      overlaps a sibling — tighten the *description*, never the cases;
+   - delegation misroute → the agent `description` is too broad or overlaps a skill —
+     tighten the *agent description*, never the cases;
    - `expect:null` case fired a skill → confusability with another plugin;
    - output drift → `plugin.json` and `evals/output.json` `expectEntry` disagree
      (e.g. a version bump that didn't update both);

@@ -1,0 +1,24 @@
+{
+  "cases": [
+    {
+      "prompt": "`bun run check` just failed on an activation eval — a prompt routed to the wrong skill. Diagnose the root cause and record any durable lesson.",
+      "expect": "self-reflection",
+      "note": "the canonical trigger: a gate/eval failure that should feed a lesson back into the KB"
+    },
+    {
+      "prompt": "The eval gate is red because a coverage check found a skill with no positive activation case. Figure out why and capture the lesson if it's durable.",
+      "expect": "self-reflection",
+      "note": "another gate-failure shape — coverage layer"
+    },
+    {
+      "prompt": "Add a `category` column to the registry DB schema and write the migration.",
+      "expect": null,
+      "note": "ordinary build work with no failure to reflect on — must NOT over-delegate to self-reflection"
+    },
+    {
+      "prompt": "Summarize what this repository does for a new contributor.",
+      "expect": null,
+      "note": "a plain question — no gate failure, no reflection"
+    }
+  ]
+}

@@ -4,4 +4,6 @@ export * from "./output";
 export * from "./coverage";
 export * from "./judge";
 export * from "./activation";
+export * from "./delegation";
+export * from "./evidence";
 export * from "./runner";

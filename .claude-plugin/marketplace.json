@@ -156,7 +156,7 @@
     {
       "name": "reflection",
       "source": "reflection",
-      "description": "A self-reflection subagent that diagnoses ObjectCore eval/gate failures and captures durable lessons into the knowledge base.",
+      "description": "The reflection loop: a PostToolUse hook that auto-invokes a self-reflection subagent on a red ObjectCore gate, diagnosing the failure and capturing durable lessons into the knowledge base.",
       "version": "0.1.0",
       "author": {
         "name": "twofoldtech-dakota"
@@ -166,6 +166,7 @@
         "self-improvement",
         "evals",
         "subagents",
+        "hooks",
         "knowledge"
       ],
       "category": "workflow"

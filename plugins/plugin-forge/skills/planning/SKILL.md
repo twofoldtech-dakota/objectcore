@@ -6,6 +6,8 @@ description: Turn a pinned plugin spec into a concrete PluginSpec the scaffolder
 
 Convert the pinned spec into a `PluginSpec` the scaffolder consumes. This skill conforms to `writing-great-skills` — read it for the metadata / body / reference discipline.
 
+**First, consult prior lessons.** Skim `knowledge/INDEX.md` (the factory KB) and open any entry whose title bears on this plugin's components, trigger surfaces, or eval cases — the loop writes lessons there precisely so the *next* generation doesn't repeat a past gate failure (the EDDOps feedback). Carry what's relevant into the decisions below.
+
 Decide, in order:
 
 1. **Components.** Map each outcome to the smallest component that enforces it. Prefer several small, composable skills over one monolith.
@@ -13,6 +15,7 @@ Decide, in order:
 3. **Layering.** Split each skill into metadata (always-on), body (loaded on match), and reference (pulled on demand). Pay token cost only for the layer reached.
 4. **Catalog shape.** Version (start `0.0.1`), keywords, optional category, and a **string** `repository`. These become the catalog entry via `deriveCatalog`. `category` (optional) must come from the catalog's vocabulary — `workflow | governance | generator | meta | example` — or be omitted; do not invent a one-off string.
 5. **Activation cases.** For each skill, write a **budget** of cases, not a token one: **≥2 positives** covering *distinct* intents (e.g. drafting vs. revising), **≥1 plain negative** (clearly unrelated), and **≥1 confusability negative** that shares vocabulary with a *sibling* catalog surface but has the wrong intent. These become `evals/activation.json` and are what gate the plugin. The gate now enforces both halves: a skill needs a positive case (or the scaffold refuses it) **and** the plugin needs a negative case (or coverage fails).
+6. **Delegation cases (when the plugin ships `agents`).** An agent's `description` is a trigger surface too — it decides when the orchestrator *delegates* to the subagent — so it is gated exactly like a skill. Write a budget into `evals/delegation.json`: **≥1 positive** per agent (a task that should delegate to it) and **≥1 negative** (`expect: null` — ordinary work it must NOT hijack). The scaffolder refuses an agent with no positive delegation case; readiness fails a plugin with no negative one.
 
 ## PluginSpec (what the scaffolder consumes)
 
@@ -26,9 +29,14 @@ Decide, in order:
     { "name": "do-x", "description": "Use when …", "body": "# Do X\n\nReal instructions: the steps, the output format, any reference to load." }
   ],
   "commands": [{ "name": "run-x", "description": "…" }],
+  "agents": [{ "name": "do-x-deep", "description": "Use when … (delegated to, not auto-fired)", "body": "# Do X Deep\n\nThe subagent's system prompt." }],
   "activation": [
     { "prompt": "a prompt that should fire do-x", "expect": "do-x" },
     { "prompt": "a near-miss that should not fire anything", "expect": null }
+  ],
+  "delegation": [
+    { "prompt": "a task that should delegate to do-x-deep", "expect": "do-x-deep" },
+    { "prompt": "ordinary work it must not hijack", "expect": null }
   ]
 }
 ```

@@ -22,7 +22,7 @@ const icon = (r: EvalResult): string =>
 /** Human-readable report, grouped by suite. */
 export function formatReport(report: EvalReport): string {
   const lines: string[] = [];
-  const suites: Array<EvalResult["suite"]> = ["output", "coverage", "activation"];
+  const suites: Array<EvalResult["suite"]> = ["output", "coverage", "activation", "delegation"];
   for (const suite of suites) {
     const group = report.results.filter((r) => r.suite === suite);
     if (group.length === 0) continue;
