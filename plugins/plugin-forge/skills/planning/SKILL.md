@@ -16,6 +16,7 @@ Decide, in order:
 4. **Catalog shape.** Version (start `0.0.1`), keywords, optional category, and a **string** `repository`. These become the catalog entry via `deriveCatalog`. `category` (optional) must come from the catalog's vocabulary — `workflow | governance | generator | meta | example` — or be omitted; do not invent a one-off string.
 5. **Activation cases.** For each skill, write a **budget** of cases, not a token one: **≥2 positives** covering *distinct* intents (e.g. drafting vs. revising), **≥1 plain negative** (clearly unrelated), and **≥1 confusability negative** that shares vocabulary with a *sibling* catalog surface but has the wrong intent. These become `evals/activation.json` and are what gate the plugin. The gate now enforces both halves: a skill needs a positive case (or the scaffold refuses it) **and** the plugin needs a negative case (or coverage fails).
 6. **Delegation cases (when the plugin ships `agents`).** An agent's `description` is a trigger surface too — it decides when the orchestrator *delegates* to the subagent — so it is gated exactly like a skill. Write a budget into `evals/delegation.json`: **≥1 positive** per agent (a task that should delegate to it) and **≥1 negative** (`expect: null` — ordinary work it must NOT hijack). The scaffolder refuses an agent with no positive delegation case; readiness fails a plugin with no negative one.
+7. **MCP servers (when the plugin bundles tools, `mcp`).** Emitted as `.mcp.json` at the plugin root (server objects live there, never in `plugin.json` — its `mcpServers` is only a path-override string). A **stdio** server has `command` + `args`; reference in-plugin files with **`${CLAUDE_PLUGIN_ROOT}/...`** so they resolve wherever the plugin installs. A **remote** server has `type: "http"|"sse"` + `url`. **Bundling MCP is a credential surface**: an MCP server is arbitrary code the host runs with the user's credentials, so a plugin that ships one **cannot be published without attestation** (the release provenance gate scans for `.mcp.json`). Never inline secrets — pass them through `env`/`headers` referencing host variables.
 
 ## PluginSpec (what the scaffolder consumes)
 
@@ -30,6 +31,7 @@ Decide, in order:
   ],
   "commands": [{ "name": "run-x", "description": "…" }],
   "agents": [{ "name": "do-x-deep", "description": "Use when … (delegated to, not auto-fired)", "body": "# Do X Deep\n\nThe subagent's system prompt." }],
+  "mcp": { "x-tools": { "command": "bun", "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.ts"] } },
   "activation": [
     { "prompt": "a prompt that should fire do-x", "expect": "do-x" },
     { "prompt": "a near-miss that should not fire anything", "expect": null }

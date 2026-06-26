@@ -7,7 +7,7 @@
 
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AgentSpec, ComponentSpec, HooksSpec, PluginSpec, ScaffoldResult } from "./types";
+import type { AgentSpec, ComponentSpec, HooksSpec, McpSpec, PluginSpec, ScaffoldResult } from "./types";
 
 // Canonical rule lives in registry-core/validate.ts; mirrored here for a fast
 // pre-write guard so we never emit a plugin the catalog would later reject.
@@ -77,6 +77,39 @@ function validateAgents(agents: AgentSpec[]): void {
         throw new Error(
           `agent "${a.name}": \`${f}\` is not allowed in a plugin-shipped agent (security)`,
         );
+      }
+    }
+  }
+}
+
+// MCP server names: a conservative charset so the key is a safe identifier across
+// the host's config surface (letters, digits, _ and -).
+const MCP_NAME = /^[a-zA-Z0-9_-]+$/;
+const MCP_TRANSPORTS = new Set(["stdio", "http", "sse"]);
+
+/** Pre-write guard for an MCP spec: a valid name per server, a known transport, and
+ *  the field required by that transport (stdio ⇒ command; http/sse ⇒ url) — with the
+ *  wrong-transport fields rejected so a typo'd config fails loudly, not at runtime.
+ *  Throws before any write. */
+function validateMcp(mcp: McpSpec): void {
+  const names = Object.keys(mcp);
+  if (!names.length) throw new Error("`mcp` is present but defines no servers");
+  for (const name of names) {
+    if (!MCP_NAME.test(name)) {
+      throw new Error(`MCP server name "${name}" must match ${MCP_NAME} (letters, digits, _ , -)`);
+    }
+    const s = mcp[name]!;
+    const type = s.type ?? "stdio";
+    if (!MCP_TRANSPORTS.has(type)) {
+      throw new Error(`MCP server "${name}": invalid type "${type}" (must be stdio|http|sse)`);
+    }
+    if (type === "stdio") {
+      if (!s.command?.trim()) throw new Error(`MCP server "${name}" (stdio) needs a \`command\``);
+      if (s.url) throw new Error(`MCP server "${name}" (stdio) must not set \`url\``);
+    } else {
+      if (!s.url?.trim()) throw new Error(`MCP server "${name}" (${type}) needs a \`url\``);
+      if (s.command || s.args) {
+        throw new Error(`MCP server "${name}" (${type}) must not set \`command\`/\`args\``);
       }
     }
   }
@@ -173,14 +206,16 @@ export async function scaffoldPlugin(
     throw new Error("`repository` must be a string");
   }
   const hasHooks = !!(spec.hooks && Object.keys(spec.hooks).length);
-  if (skills.length + commands.length + agents.length === 0 && !hasHooks) {
-    throw new Error("a plugin needs at least one component (skill, command, agent, or hooks)");
+  const hasMcp = !!(spec.mcp && Object.keys(spec.mcp).length);
+  if (skills.length + commands.length + agents.length === 0 && !hasHooks && !hasMcp) {
+    throw new Error("a plugin needs at least one component (skill, command, agent, hooks, or mcp)");
   }
   for (const c of [...skills, ...commands]) {
     if (!KEBAB.test(c.name)) throw new Error(`component name "${c.name}" must be kebab-case`);
   }
   if (spec.hooks) validateHooks(spec.hooks);
   if (agents.length) validateAgents(agents);
+  if (spec.mcp) validateMcp(spec.mcp);
   // The factory rule: a skill that never fires is worse than one that fails to
   // parse, so a plugin with skills must ship activation cases to gate them.
   if (skills.length > 0 && !(spec.activation && spec.activation.length)) {
@@ -268,6 +303,14 @@ export async function scaffoldPlugin(
   // `{ "hooks": {...} }` wrapper (a plugin-specific rule the engine owns).
   if (spec.hooks) {
     await emit(written, join(dir, "hooks", "hooks.json"), json({ hooks: spec.hooks }));
+  }
+
+  // MCP: emit `.mcp.json` at the plugin ROOT (the file the provenance scan looks
+  // for). The spec carries the server map; the engine owns the `{ "mcpServers": {...} }`
+  // wrapper. Server objects live here, NOT in plugin.json (whose `mcpServers` is only
+  // a path-override string) — so the manifest schema stays clean.
+  if (spec.mcp) {
+    await emit(written, join(dir, ".mcp.json"), json({ mcpServers: spec.mcp }));
   }
 
   if (spec.activation?.length) {

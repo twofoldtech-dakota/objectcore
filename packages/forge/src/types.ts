@@ -36,6 +36,31 @@ export interface HookEntry {
  *  carries just the events map. */
 export type HooksSpec = Record<string, HookEntry[]>;
 
+/** One MCP server definition. Two shapes: a local **stdio** server (`command` +
+ *  `args` — use `${CLAUDE_PLUGIN_ROOT}` for in-plugin paths so it resolves wherever
+ *  the plugin is installed) or a **remote** `http`/`sse` server (`url`). An MCP
+ *  server is arbitrary code the host runs with the user's credentials — bundling one
+ *  trips the publish-time provenance gate (AGENTS.md: "treat every MCP-bundling plugin
+ *  as a managed credential"); the engine emits it, the release gate guards it. */
+export interface McpServerSpec {
+  /** Transport. Defaults to "stdio" (a local command). */
+  type?: "stdio" | "http" | "sse";
+  /** stdio: the executable (e.g. "bun", "node", "npx"). */
+  command?: string;
+  /** stdio: argv; reference in-plugin files via `${CLAUDE_PLUGIN_ROOT}/...`. */
+  args?: string[];
+  /** http/sse: the server URL. */
+  url?: string;
+  /** Environment passed to the server process (stdio) — never inline secrets. */
+  env?: Record<string, string>;
+  /** http/sse: request headers. */
+  headers?: Record<string, string>;
+}
+
+/** `serverName -> McpServerSpec`. Emitted as `.mcp.json` (`{ "mcpServers": {...} }`)
+ *  at the plugin ROOT — the file the provenance scan looks for. */
+export type McpSpec = Record<string, McpServerSpec>;
+
 /** A plugin-shipped subagent (`agents/<name>.md`). `body` is the agent's system
  *  prompt. SECURITY: `hooks`, `mcpServers`, and `permissionMode` are NOT permitted
  *  in plugin agents — they are intentionally absent here and rejected at write time.
@@ -75,6 +100,9 @@ export interface PluginSpec {
   hooks?: HooksSpec;
   /** Subagents → emitted as `agents/<name>.md` (forbidden fields rejected). */
   agents?: AgentSpec[];
+  /** MCP servers → emitted as `.mcp.json` at the plugin root. Bundling MCP trips the
+   *  publish-time provenance gate (the catalog seam stays unchanged either way). */
+  mcp?: McpSpec;
   /** Activation eval cases. REQUIRED when the plugin ships skills. */
   activation?: ActivationCase[];
   /** Delegation eval cases. REQUIRED when the plugin ships agents — every agent

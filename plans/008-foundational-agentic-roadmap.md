@@ -27,7 +27,13 @@
   `reflection` plugin's new `PostToolUse` hook reads to **auto-invoke `self-reflection`
   on a red gate**. The Reflexion/EDDOps loop is now closed: gate → evidence →
   generator → KB. Two lessons captured through the loop's own `kb:add` (the stub-marker
-  gotcha + the trigger-surface-gating pattern). **F5 (MCP primitive) is next.**
+  gotcha + the trigger-surface-gating pattern). **F5 (MCP primitive) is built** on
+  `feat/mcp-primitive`: the forge scaffolder now emits `.mcp.json` at the plugin root
+  (`PluginSpec.mcp`, stdio/http/sse transports validated, `${CLAUDE_PLUGIN_ROOT}`
+  convention), and the existing publish-time provenance gate (`hasMcpConfig` scans for
+  `.mcp.json`) catches it for free — no new derivation path. A live MCP-bearing plugin
+  is deliberately NOT added (credential surface); the KB-as-MCP-resource-server payload
+  is a follow-on. **F6 (output-styles) is next.**
 
 ## The self-improving loop these items assemble
 
@@ -59,7 +65,7 @@ Items F1–F4 are not independent — they snap together into one Reflexion/EDDO
 | **F2** | **Hooks primitive + `kb-writer` plugin** | `scaffold.ts` now emits `hooks/hooks.json` (PluginSpec.hooks; engine owns the `{hooks:{...}}` wrapper; validates events/action-types; forge tests); a hooks-only `kb-writer` plugin: `SessionStart` command surfaces `knowledge/INDEX.md` into context, `Stop` prompt nudges lesson capture | **hooks** (forge-generatable) | the read/write surface around the KB (Reflexion long-term memory) | M–L | F1 | **DONE (pending review)** — branch `feat/hooks-primitive`; kb-writer is hooks-only to avoid an activation clash with `curating-knowledge` |
 | **F3** | **Subagents primitive + `self-reflection` subagent** | `scaffold.ts` now emits `agents/*.md` (AgentSpec; rejects `hooks`/`mcpServers`/`permissionMode`; tools serialized comma-separated; forge tests); a `reflection` plugin shipping the `self-reflection` subagent that diagnoses gate failures and writes durable lessons to the KB | **subagents** (forge-generatable) | Reflexion's Self-Reflection model (lesson generator) | M | F1 | **DONE (pending review)** — branch `feat/subagents-primitive`; agents-only plugin |
 | **F4** | **EDDOps eval-loop hardening** | the eval gate emits structured evidence (`dist/eval-evidence.json` via `buildEvidence`: failures + near-misses) every run; the `reflection` `PostToolUse` hook reads it and auto-invokes `self-reflection` on a red gate; the planning skill consults the KB on the way in; **agent-delegation gap closed** (`delegation.ts` + `evals/delegation.json`, gated like skills, forge-enforced) | — (extends existing eval gate) + **agent delegation** (now gated) | turns the one-shot gate into a closed feedback loop | M | F1, F3 | **DONE (pending review)** — branch `feat/eddops-eval-loop`; gate green; 2 lessons captured through the loop |
-| **F5** | **MCP primitive in forge** | scaffold `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}`, behind the existing publish-time provenance/attestation gate | **MCP** (forge-generatable) | extends generatable set; enables tool-bearing plugins | M–L | F2 | TODO |
+| **F5** | **MCP primitive in forge** | scaffold `.mcp.json` at the plugin root (`PluginSpec.mcp`; stdio/http/sse validated; `${CLAUDE_PLUGIN_ROOT}` convention; engine owns the `{mcpServers:{…}}` wrapper). The existing publish-time provenance gate (`hasMcpConfig` → `.mcp.json`) catches it with no new path. Forge test asserts the emitted filename is in `MCP_CONFIG_FILES` | **MCP** (forge-generatable) | extends generatable set; enables tool-bearing plugins | M–L | F2 | **DONE (pending review)** — branch `feat/mcp-primitive`; gate green; no live MCP plugin shipped (credential surface) |
 | **F6** | **Output-styles (+ minimal plugin settings) primitive** | scaffold `output-styles/`; whatever of `settings.json` (`agent`/`subagentStatusLine`) is packagable | **output styles** | rounds out coverage; low leverage | S each | F1 | TODO |
 | **F7** | **STRETCH — recursive self-improvement of the forge engine** | forge proposes/refines its own scaffolding code, strictly eval-gated (Self-Developing style) | — | the north star; research-grade | L | F4 | DEFERRED |
 
