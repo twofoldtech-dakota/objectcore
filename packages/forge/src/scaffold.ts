@@ -7,7 +7,7 @@
 
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { ComponentSpec, HooksSpec, PluginSpec, ScaffoldResult } from "./types";
+import type { AgentSpec, ComponentSpec, HooksSpec, PluginSpec, ScaffoldResult } from "./types";
 
 // Canonical rule lives in registry-core/validate.ts; mirrored here for a fast
 // pre-write guard so we never emit a plugin the catalog would later reject.
@@ -54,6 +54,29 @@ function validateHooks(hooks: HooksSpec): void {
         if (action.type === "prompt" && !action.prompt) {
           throw new Error(`a "prompt" hook in "${event}" needs a \`prompt\``);
         }
+      }
+    }
+  }
+}
+
+// Plugin-shipped agents may NOT carry these (they could hijack permissions or
+// lifecycle events). Rejected before any write — the core subagent security rule.
+const FORBIDDEN_AGENT_FIELDS = ["hooks", "mcpServers", "permissionMode"];
+
+/** Pre-write guard for subagents: kebab name, a description, the one legal
+ *  isolation value, and NONE of the forbidden fields. Throws before any write. */
+function validateAgents(agents: AgentSpec[]): void {
+  for (const a of agents) {
+    if (!KEBAB.test(a.name)) throw new Error(`agent name "${a.name}" must be kebab-case`);
+    if (!a.description?.trim()) throw new Error(`agent "${a.name}" needs a non-empty description`);
+    if (a.isolation !== undefined && a.isolation !== "worktree") {
+      throw new Error(`agent "${a.name}": the only valid \`isolation\` is "worktree"`);
+    }
+    for (const f of FORBIDDEN_AGENT_FIELDS) {
+      if (f in (a as unknown as Record<string, unknown>)) {
+        throw new Error(
+          `agent "${a.name}": \`${f}\` is not allowed in a plugin-shipped agent (security)`,
+        );
       }
     }
   }
@@ -109,6 +132,30 @@ function commandDoc(c: ComponentSpec): string {
   return `---\ndescription: ${c.description}\n---\n${c.body ?? defaultCommandBody(c)}`;
 }
 
+function defaultAgentBody(a: AgentSpec): string {
+  return `# ${titleCase(a.name)}
+
+${FORGE_STUB_MARKER} Replace this stub with the agent's system prompt — its role, when
+it is delegated to, the steps it takes, and the exact shape of what it returns.
+`;
+}
+
+/** Serialize a subagent to `agents/<name>.md`. Tool/skill lists are comma-separated
+ *  strings (the YAML-array form has a known spawn bug). */
+function agentDoc(a: AgentSpec): string {
+  const fm: string[] = [`name: ${a.name}`, `description: ${a.description}`];
+  if (a.model) fm.push(`model: ${a.model}`);
+  if (a.effort) fm.push(`effort: ${a.effort}`);
+  if (a.maxTurns !== undefined) fm.push(`maxTurns: ${a.maxTurns}`);
+  if (a.tools?.length) fm.push(`tools: ${a.tools.join(", ")}`);
+  if (a.disallowedTools?.length) fm.push(`disallowedTools: ${a.disallowedTools.join(", ")}`);
+  if (a.skills?.length) fm.push(`skills: ${a.skills.join(", ")}`);
+  if (a.memory) fm.push(`memory: ${a.memory}`);
+  if (a.background !== undefined) fm.push(`background: ${a.background}`);
+  if (a.isolation) fm.push(`isolation: ${a.isolation}`);
+  return `---\n${fm.join("\n")}\n---\n${a.body ?? defaultAgentBody(a)}`;
+}
+
 /** Emit a complete, gated plugin from a spec. Throws before writing anything if
  *  the spec violates a hard rule or the target exists (without `force`). */
 export async function scaffoldPlugin(
@@ -118,6 +165,7 @@ export async function scaffoldPlugin(
 ): Promise<ScaffoldResult> {
   const skills = spec.skills ?? [];
   const commands = spec.commands ?? [];
+  const agents = spec.agents ?? [];
 
   if (!KEBAB.test(spec.name)) throw new Error(`plugin name "${spec.name}" must be kebab-case`);
   if (!spec.description?.trim()) throw new Error("plugin spec needs a non-empty description");
@@ -125,13 +173,14 @@ export async function scaffoldPlugin(
     throw new Error("`repository` must be a string");
   }
   const hasHooks = !!(spec.hooks && Object.keys(spec.hooks).length);
-  if (skills.length + commands.length === 0 && !hasHooks) {
-    throw new Error("a plugin needs at least one component (skill, command, or hooks)");
+  if (skills.length + commands.length + agents.length === 0 && !hasHooks) {
+    throw new Error("a plugin needs at least one component (skill, command, agent, or hooks)");
   }
   for (const c of [...skills, ...commands]) {
     if (!KEBAB.test(c.name)) throw new Error(`component name "${c.name}" must be kebab-case`);
   }
   if (spec.hooks) validateHooks(spec.hooks);
+  if (agents.length) validateAgents(agents);
   // The factory rule: a skill that never fires is worse than one that fails to
   // parse, so a plugin with skills must ship activation cases to gate them.
   if (skills.length > 0 && !(spec.activation && spec.activation.length)) {
@@ -184,6 +233,9 @@ export async function scaffoldPlugin(
   }
   for (const c of commands) {
     await emit(written, join(dir, "commands", `${c.name}.md`), commandDoc(c));
+  }
+  for (const a of agents) {
+    await emit(written, join(dir, "agents", `${a.name}.md`), agentDoc(a));
   }
 
   // Hooks: the spec carries just the events map; the plugin file requires the
