@@ -36,6 +36,27 @@ export interface HookEntry {
  *  carries just the events map. */
 export type HooksSpec = Record<string, HookEntry[]>;
 
+/** A plugin-shipped subagent (`agents/<name>.md`). `body` is the agent's system
+ *  prompt. SECURITY: `hooks`, `mcpServers`, and `permissionMode` are NOT permitted
+ *  in plugin agents — they are intentionally absent here and rejected at write time.
+ *  Tool lists are serialized comma-separated (the YAML-array form has a spawn bug). */
+export interface AgentSpec {
+  name: string;
+  description: string;
+  /** The agent's system prompt (markdown body). */
+  body?: string;
+  model?: string;
+  effort?: string;
+  maxTurns?: number;
+  tools?: string[];
+  disallowedTools?: string[];
+  skills?: string[];
+  memory?: "user" | "project" | "local";
+  background?: boolean;
+  /** The only valid value is "worktree". */
+  isolation?: "worktree";
+}
+
 /** The full description of a plugin to scaffold. Mirrors the manifest fields the
  *  catalog cares about, plus the components and the activation eval cases. */
 export interface PluginSpec {
@@ -52,6 +73,8 @@ export interface PluginSpec {
   commands?: ComponentSpec[];
   /** Lifecycle hooks → emitted as `hooks/hooks.json` (engine adds the wrapper). */
   hooks?: HooksSpec;
+  /** Subagents → emitted as `agents/<name>.md` (forbidden fields rejected). */
+  agents?: AgentSpec[];
   /** Activation eval cases. REQUIRED when the plugin ships skills. */
   activation?: ActivationCase[];
   /** Optional output-eval expectations; defaults to asserting the version. */
