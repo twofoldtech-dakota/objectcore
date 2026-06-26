@@ -33,7 +33,14 @@
   convention), and the existing publish-time provenance gate (`hasMcpConfig` scans for
   `.mcp.json`) catches it for free — no new derivation path. A live MCP-bearing plugin
   is deliberately NOT added (credential surface); the KB-as-MCP-resource-server payload
-  is a follow-on. **F6 (output-styles) is next.**
+  is a follow-on. **F6 (output-styles + minimal settings) is built** on
+  `feat/output-styles`: the forge scaffolder now emits `output-styles/*.md` (hyphenated
+  `keep-coding-instructions`/`force-for-plugin` frontmatter; ungated — not a trigger
+  surface) and a narrow `settings.json` (only the packagable `agent`/`subagentStatusLine`
+  keys; unknown keys rejected; `settings.agent` must name a declared agent). The
+  components-at-root invariant (`validatePlacement`) now covers `output-styles/` too.
+  **With F6 the forge-generatable Claude Code primitive set is complete** (skills,
+  commands, hooks, agents, MCP, output styles, settings). Only F7 (stretch) remains.
 
 ## The self-improving loop these items assemble
 
@@ -66,7 +73,7 @@ Items F1–F4 are not independent — they snap together into one Reflexion/EDDO
 | **F3** | **Subagents primitive + `self-reflection` subagent** | `scaffold.ts` now emits `agents/*.md` (AgentSpec; rejects `hooks`/`mcpServers`/`permissionMode`; tools serialized comma-separated; forge tests); a `reflection` plugin shipping the `self-reflection` subagent that diagnoses gate failures and writes durable lessons to the KB | **subagents** (forge-generatable) | Reflexion's Self-Reflection model (lesson generator) | M | F1 | **DONE (pending review)** — branch `feat/subagents-primitive`; agents-only plugin |
 | **F4** | **EDDOps eval-loop hardening** | the eval gate emits structured evidence (`dist/eval-evidence.json` via `buildEvidence`: failures + near-misses) every run; the `reflection` `PostToolUse` hook reads it and auto-invokes `self-reflection` on a red gate; the planning skill consults the KB on the way in; **agent-delegation gap closed** (`delegation.ts` + `evals/delegation.json`, gated like skills, forge-enforced) | — (extends existing eval gate) + **agent delegation** (now gated) | turns the one-shot gate into a closed feedback loop | M | F1, F3 | **DONE (pending review)** — branch `feat/eddops-eval-loop`; gate green; 2 lessons captured through the loop |
 | **F5** | **MCP primitive in forge** | scaffold `.mcp.json` at the plugin root (`PluginSpec.mcp`; stdio/http/sse validated; `${CLAUDE_PLUGIN_ROOT}` convention; engine owns the `{mcpServers:{…}}` wrapper). The existing publish-time provenance gate (`hasMcpConfig` → `.mcp.json`) catches it with no new path. Forge test asserts the emitted filename is in `MCP_CONFIG_FILES` | **MCP** (forge-generatable) | extends generatable set; enables tool-bearing plugins | M–L | F2 | **DONE (pending review)** — branch `feat/mcp-primitive`; gate green; no live MCP plugin shipped (credential surface) |
-| **F6** | **Output-styles (+ minimal plugin settings) primitive** | scaffold `output-styles/`; whatever of `settings.json` (`agent`/`subagentStatusLine`) is packagable | **output styles** | rounds out coverage; low leverage | S each | F1 | TODO |
+| **F6** | **Output-styles (+ minimal plugin settings) primitive** | forge emits `output-styles/<name>.md` (`OutputStyleSpec`; hyphenated frontmatter; ungated — not a trigger surface) + a narrow `settings.json` (`PluginSettingsSpec`: only `agent`/`subagentStatusLine`; unknown keys rejected; `agent` cross-checked vs declared agents). `validatePlacement` now also guards `output-styles/` | **output styles** | rounds out coverage; low leverage | S each | F1 | **DONE (pending review)** — branch `feat/output-styles`; gate green; forge primitive set now complete |
 | **F7** | **STRETCH — recursive self-improvement of the forge engine** | forge proposes/refines its own scaffolding code, strictly eval-gated (Self-Developing style) | — | the north star; research-grade | L | F4 | DEFERRED |
 
 ## Corrections baked into the ordering (from the research)

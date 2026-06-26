@@ -82,6 +82,34 @@ export interface AgentSpec {
   isolation?: "worktree";
 }
 
+/** A plugin output style (`output-styles/<name>.md`): markdown whose body is added
+ *  to the system prompt to reshape how Claude responds. NOT a trigger surface — it is
+ *  selected/enabled, never prompt-routed, so it carries no activation/delegation eval
+ *  (like a command). Frontmatter keys are the hyphenated Claude Code spelling. */
+export interface OutputStyleSpec {
+  /** kebab-case; also the filename stem (`output-styles/<name>.md`). */
+  name: string;
+  description?: string;
+  /** Keep Claude's default coding instructions alongside this style (default false). */
+  keepCodingInstructions?: boolean;
+  /** Plugin-only: auto-apply whenever the plugin is enabled (default false). */
+  forceForPlugin?: boolean;
+  /** The style's system-prompt body (markdown). A stub is generated if omitted. */
+  body?: string;
+}
+
+/** The narrow, packagable subset of a plugin `settings.json` (emitted at the plugin
+ *  ROOT). Per the Claude Code docs only `agent` (run a plugin agent as the main
+ *  thread) and `subagentStatusLine` are honored when a plugin contributes settings —
+ *  unknown keys are silently ignored, so the engine REJECTS them rather than emit
+ *  dead config. */
+export interface PluginSettingsSpec {
+  /** Name of an agent declared in THIS plugin's `agents/` to run as the main thread. */
+  agent?: string;
+  /** Subagent status-line config (shape per Claude Code; passed through verbatim). */
+  subagentStatusLine?: unknown;
+}
+
 /** The full description of a plugin to scaffold. Mirrors the manifest fields the
  *  catalog cares about, plus the components and the activation eval cases. */
 export interface PluginSpec {
@@ -103,6 +131,10 @@ export interface PluginSpec {
   /** MCP servers → emitted as `.mcp.json` at the plugin root. Bundling MCP trips the
    *  publish-time provenance gate (the catalog seam stays unchanged either way). */
   mcp?: McpSpec;
+  /** Output styles → emitted as `output-styles/<name>.md`. */
+  outputStyles?: OutputStyleSpec[];
+  /** Narrow plugin `settings.json` (`agent`/`subagentStatusLine` only). */
+  settings?: PluginSettingsSpec;
   /** Activation eval cases. REQUIRED when the plugin ships skills. */
   activation?: ActivationCase[];
   /** Delegation eval cases. REQUIRED when the plugin ships agents — every agent
