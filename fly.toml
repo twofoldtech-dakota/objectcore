@@ -1,12 +1,15 @@
 # Fly.io deployment for the ObjectCore registry backend (Stage 3).
-# The permanent seam is the URL: https://objectcore.ai/v1/marketplace.json
+# The permanent seam is the URL: https://registry.objectcore.ai/v1/marketplace.json
+# (apex objectcore.ai + www are reserved for the marketing site on Vercel.)
 #
 # Secrets (NOT here — set with `flyctl secrets set`):
 #   DATABASE_URL            libsql://<db>.turso.io   (or file:./local.db for testing)
 #   TURSO_AUTH_TOKEN        <token>
 #   OBJECTCORE_EVENTS_TOKEN <token>  (optional) — when set, POST /v1/events requires
 #                                    `Authorization: Bearer <token>`; unset = open ingestion
-# Custom domain + TLS:  flyctl certs add objectcore.ai
+# Custom domain + TLS:  flyctl certs add registry.objectcore.ai
+#   (DNS: a CNAME  registry -> objectcore-registry.fly.dev  at the GoDaddy nameservers;
+#    a CNAME'd subdomain needs no dedicated IP — Fly serves it on the shared IP via SNI.)
 
 app = "objectcore-registry"
 primary_region = "iad"
