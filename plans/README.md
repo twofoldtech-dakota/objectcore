@@ -114,9 +114,10 @@ needs `ANTHROPIC_API_KEY` (out of the local/agent reach). To finish:
   (the host is live on Fly). Telemetry = **plan 010** (`POST /v1/events` + authenticated
   `/v1/events/stats`). OIDC publish = **plan 011** (`POST /v1/plugins`: GitHub-Actions OIDC
   verification via Web Crypto + re-enforcing the provenance gate + writing through the
-  `CatalogStore` port; inert until `OBJECTCORE_OIDC_AUDIENCE` set). The D-series of designed
-  registry routes is now complete. Remaining publisher-side work: a GitHub Actions workflow
-  that mints the OIDC token and calls the route (noted in plan 011's follow-ups).
+  `CatalogStore` port; inert until `OBJECTCORE_OIDC_AUDIENCE` set). The publisher side is also
+  built: `bun run registry:publish` mints a GitHub-Actions OIDC token and POSTs each plugin,
+  wired inert into `release.yml` (arm with the repo variable `OBJECTCORE_REGISTRY_URL`). The
+  D-series of designed registry routes — server AND publisher — is now complete.
 - **C3 — `prod.ts` never runs `migrate()`; shallow `/healthz`**: PROMOTED to a
   plan — now **plan 004** (P1), because the Turso + Fly secrets are set as of
   2026-06-25 and deploy is armed. No longer deferred.

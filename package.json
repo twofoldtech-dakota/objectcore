@@ -25,6 +25,7 @@
     "registry:dev": "bun run packages/registry-server/src/dev.ts",
     "registry:prod": "bun run packages/registry-server/src/prod.ts",
     "registry:ingest": "bun run scripts/registry-ingest.ts",
+    "registry:publish": "bun run scripts/registry-publish.ts",
     "db:migrate": "bun run scripts/db-migrate.ts",
     "test": "bun test"
   },
