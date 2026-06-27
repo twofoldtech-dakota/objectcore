@@ -1,0 +1,8 @@
+{
+  "name": "design-forge",
+  "version": "0.0.1",
+  "description": "ObjectCore meta-plugin: author, theme, and consume a stack-agnostic design system from a DTCG design-token source of truth — generate accessible token scales, theme them with a resolver, and keep UI on-brand by picking semantic tokens by role.",
+  "author": { "name": "twofoldtech-dakota" },
+  "license": "MIT",
+  "keywords": ["objectcore", "meta", "generator", "design-system", "design-tokens", "accessibility"]
+}

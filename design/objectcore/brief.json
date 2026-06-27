@@ -1,0 +1,22 @@
+{
+  "brief": {
+    "name": "objectcore",
+    "adjectives": ["modern", "precise", "trustworthy", "technical"],
+    "intent": "A self-replicating Claude Code plugin marketplace built as a software factory. A developer-tooling brand that should feel engineered, systematic, and credible — confident but not loud."
+  },
+  "colors": [
+    { "name": "accent", "hue": 264, "chroma": 0.15 },
+    { "name": "success", "hue": 150, "chroma": 0.13 },
+    { "name": "warning", "hue": 80, "chroma": 0.14 },
+    { "name": "danger", "hue": 25, "chroma": 0.16 }
+  ],
+  "neutralHue": 264,
+  "baseUnit": 4,
+  "baseFontPx": 16,
+  "typeRatio": 1.25,
+  "fonts": {
+    "sans": ["Inter", "system-ui", "sans-serif"],
+    "mono": ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
+    "serif": ["Georgia", "serif"]
+  }
+}

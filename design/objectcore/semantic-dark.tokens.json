@@ -1,0 +1,47 @@
+{
+  "bg": {
+    "$type": "color",
+    "canvas": {
+      "$value": "{color.neutral.dark.1}"
+    },
+    "subtle": {
+      "$value": "{color.neutral.dark.2}"
+    },
+    "surface": {
+      "$value": "{color.neutral.dark.3}"
+    }
+  },
+  "border": {
+    "$type": "color",
+    "subtle": {
+      "$value": "{color.neutral.dark.6}"
+    },
+    "default": {
+      "$value": "{color.neutral.dark.7}"
+    },
+    "strong": {
+      "$value": "{color.neutral.dark.8}"
+    }
+  },
+  "text": {
+    "$type": "color",
+    "subtle": {
+      "$value": "{color.neutral.dark.11}"
+    },
+    "primary": {
+      "$value": "{color.neutral.dark.12}"
+    }
+  },
+  "accent": {
+    "$type": "color",
+    "solid": {
+      "$value": "{color.accent.dark.9}"
+    },
+    "solid-hover": {
+      "$value": "{color.accent.dark.10}"
+    },
+    "text": {
+      "$value": "{color.accent.dark.11}"
+    }
+  }
+}

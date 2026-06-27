@@ -1,0 +1,33 @@
+{
+  "resolutionOrder": [
+    "primitives",
+    "theme"
+  ],
+  "modifiers": [
+    {
+      "name": "theme",
+      "contexts": {
+        "light": [
+          "semantic-light"
+        ],
+        "dark": [
+          "semantic-dark"
+        ]
+      }
+    }
+  ],
+  "themes": [
+    {
+      "name": "light",
+      "context": {
+        "theme": "light"
+      }
+    },
+    {
+      "name": "dark",
+      "context": {
+        "theme": "dark"
+      }
+    }
+  ]
+}

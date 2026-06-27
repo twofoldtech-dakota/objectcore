@@ -5,12 +5,24 @@
     "": {
       "name": "objectcore",
       "dependencies": {
+        "@objectcore/design": "workspace:*",
         "@objectcore/eval": "workspace:*",
         "@objectcore/forge": "workspace:*",
         "@objectcore/knowledge": "workspace:*",
         "@objectcore/registry-core": "workspace:*",
         "@objectcore/registry-db": "workspace:*",
         "@objectcore/release": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5.6.0",
+      },
+    },
+    "packages/design": {
+      "name": "@objectcore/design",
+      "version": "0.0.1",
+      "dependencies": {
+        "@anthropic-ai/sdk": "latest",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -118,6 +130,8 @@
     "@libsql/win32-x64-msvc": ["@libsql/win32-x64-msvc@0.4.7", "", { "os": "win32", "cpu": "x64" }, "sha512-7pJzOWzPm6oJUxml+PCDRzYQ4A1hTMHAciTAHfFK4fkbDZX33nWPVG7Y3vqdKtslcwAzwmrNDc6sXy2nwWnbiw=="],
 
     "@neon-rs/load": ["@neon-rs/load@0.0.4", "", {}, "sha512-kTPhdZyTQxB+2wpiRcFWrDcejc4JI6tkPuS7UZCG4l6Zvc5kU/gGQ/ozvHTh1XR5tS+UlfAfGuPajjzQjCiHCw=="],
+
+    "@objectcore/design": ["@objectcore/design@workspace:packages/design"],
 
     "@objectcore/eval": ["@objectcore/eval@workspace:packages/eval"],
 

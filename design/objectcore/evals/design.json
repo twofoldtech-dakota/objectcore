@@ -1,0 +1,24 @@
+{
+  "brief": {
+    "name": "objectcore",
+    "adjectives": [
+      "modern",
+      "precise",
+      "trustworthy",
+      "technical"
+    ],
+    "intent": "A self-replicating Claude Code plugin marketplace built as a software factory. A developer-tooling brand that should feel engineered, systematic, and credible — confident but not loud."
+  },
+  "cases": [
+    {
+      "question": "Does this system read as modern, precise, trustworthy, technical?",
+      "expect": "pass",
+      "note": "brand adjectives — refine and verify with a real judge"
+    },
+    {
+      "question": "Does this system read as garish, cluttered, or generic/off-brand?",
+      "expect": "fail",
+      "note": "negative bracket"
+    }
+  ]
+}

@@ -21,6 +21,24 @@
       "category": "workflow"
     },
     {
+      "name": "design-forge",
+      "source": "design-forge",
+      "description": "ObjectCore meta-plugin: author, theme, and consume a stack-agnostic design system from a DTCG design-token source of truth — generate accessible token scales, theme them with a resolver, and keep UI on-brand by picking semantic tokens by role.",
+      "version": "0.0.1",
+      "author": {
+        "name": "twofoldtech-dakota"
+      },
+      "license": "MIT",
+      "keywords": [
+        "objectcore",
+        "meta",
+        "generator",
+        "design-system",
+        "design-tokens",
+        "accessibility"
+      ]
+    },
+    {
       "name": "forge-improver",
       "source": "forge-improver",
       "description": "F7 self-improvement: a forge-improver subagent that proposes behavior-preserving refinements to ObjectCore's forge scaffolder code, gated by the eval-driven admission pipeline (boundary + golden + guard + full check) before any human merges.",

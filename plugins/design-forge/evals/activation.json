@@ -1,0 +1,44 @@
+{
+  "cases": [
+    {
+      "prompt": "I'm building a card component — which color and spacing tokens should I use so it stays on-brand?",
+      "expect": "design-foundations",
+      "note": "consuming the system in a component"
+    },
+    {
+      "prompt": "Review this button's styling against our design system — are the colors and type using the right tokens by role?",
+      "expect": "design-foundations",
+      "note": "checking UI against the system"
+    },
+    {
+      "prompt": "We're starting a new brand and need to decide our color, type, and spacing foundations as design tokens.",
+      "expect": "defining-design-tokens",
+      "note": "authoring a new system from scratch"
+    },
+    {
+      "prompt": "Help me turn our fuzzy brand direction into a concrete DTCG design-token spec before we generate anything.",
+      "expect": "defining-design-tokens",
+      "note": "the grilling gate before scaffolding"
+    },
+    {
+      "prompt": "How do I add a dark mode to our existing design tokens without duplicating everything?",
+      "expect": "theming-with-tokens",
+      "note": "adding a color mode"
+    },
+    {
+      "prompt": "We need a second brand theme over the same token system — how should I structure the sets and resolver?",
+      "expect": "theming-with-tokens",
+      "note": "multi-brand theming axis"
+    },
+    {
+      "prompt": "What's the capital of France?",
+      "expect": null,
+      "note": "clear negative — no skill should fire"
+    },
+    {
+      "prompt": "Help me design a normalized database schema for our users and orders tables.",
+      "expect": null,
+      "note": "confusability negative — shares 'design', wrong domain (data modeling)"
+    }
+  ]
+}
