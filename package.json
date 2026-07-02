@@ -21,6 +21,7 @@
     "release:publish": "bun run scripts/release-publish.ts",
     "check:catalog": "bun run scripts/check-catalog.ts",
     "kb:add": "bun run scripts/kb-add.ts",
+    "kb:curate": "bun run scripts/kb-curate.ts",
     "kb:index": "bun run scripts/kb-index.ts",
     "kb:check": "bun run scripts/kb-check.ts",
     "check": "bunx tsc && bun run check:catalog && bun run kb:check && bun run design:check && bun test && bun run eval",

@@ -6,7 +6,7 @@
 
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
-import { FileKnowledgeStore, renderIndex, checkIndexBudget } from "@objectcore/knowledge";
+import { FileKnowledgeStore, renderIndex, checkIndexBudget, checkLifecycle } from "@objectcore/knowledge";
 
 const root = join(import.meta.dir, "..");
 const kbDir = join(root, "knowledge");
@@ -45,6 +45,10 @@ if (!budget.ok) {
     `INDEX.md over budget (${budget.lines} lines / ${budget.bytes} bytes; max ${200}/${25 * 1024}) — curate or prune entries`,
   );
 }
+
+// 4) Cross-entry integrity — supersededBy targets, supersededBy cycles, links
+// (per-entry rules are already parse-enforced by the store's list()).
+for (const e of checkLifecycle(entries)) errors.push(e);
 
 if (errors.length) {
   for (const e of errors) console.error(`[error] ${e}`);
