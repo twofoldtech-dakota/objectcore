@@ -7,7 +7,8 @@
       "generator",
       "design-system",
       "design-tokens",
-      "accessibility"
+      "accessibility",
+      "themes"
     ]
   }
 }
