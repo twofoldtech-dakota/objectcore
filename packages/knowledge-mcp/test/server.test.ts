@@ -3,8 +3,11 @@
 // network, no stdio spawn — with a FileKnowledgeStore over a temp dir (the same
 // withStore pattern as packages/knowledge/test/file-store.test.ts). What's pinned:
 // the resource surface (fresh index, per-entry reads, archived marking, unknown-id
-// error), kb_search ranking + includeArchived, and kb_add inheriting the store's
-// guards (collision + frontmatter round-trip) as MCP tool errors — never crashes.
+// error), kb_search ranking + includeArchived, kb_add inheriting the store's guards
+// (collision + frontmatter round-trip) as MCP tool errors — never crashes — plus the
+// WP7 follow-up: kb_add's WP4 near-duplicate refusal (+ force override) and the
+// SINK-GATED kb_cite tool (present only with a usage log; appends a parseUsageLog-
+// round-tripping line; unknown-id error; archived-target warning).
 
 import { test, expect } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -17,6 +20,7 @@ import {
   FileKnowledgeStore,
   renderIndex,
   serializeEntry,
+  parseUsageLog,
 } from "@objectcore/knowledge";
 import type { KnowledgeEntryInput } from "@objectcore/knowledge";
 import { createKnowledgeServer } from "../src/server";
@@ -71,19 +75,24 @@ interface Harness {
   client: Client;
   store: FileKnowledgeStore;
   dir: string;
+  /** The kb_cite usage-log path — set only when `withServer(..., { usageLog: true })`. */
+  usageLog?: string;
   callTool(name: string, args: Record<string, unknown>): Promise<ToolResult>;
   readText(uri: string): Promise<string>;
 }
 
 /** Temp-dir store seeded with FIXTURES (unless `empty`), server + client linked over
- *  an in-memory pair. Everything is torn down (and the temp dir removed) after `fn`. */
+ *  an in-memory pair. With `usageLog`, a usage-log path (OUTSIDE the KB dir, proving the
+ *  kb_cite sink is independent of the KB root) is injected — otherwise kb_cite is
+ *  unregistered (the sink-gated posture). Everything is torn down (temp dir removed). */
 async function withServer(
   fn: (h: Harness) => Promise<void>,
-  opts: { empty?: boolean } = {},
+  opts: { empty?: boolean; usageLog?: boolean } = {},
 ): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "kb-mcp-"));
   const store = new FileKnowledgeStore(join(dir, "knowledge"));
-  const server = createKnowledgeServer(store);
+  const usageLog = opts.usageLog ? join(dir, "kb-usage.jsonl") : undefined;
+  const server = createKnowledgeServer(store, usageLog ? { usageLogPath: usageLog } : {});
   const client = new Client({ name: "kb-mcp-test", version: "0.0.0" });
   try {
     if (!opts.empty) for (const f of FIXTURES) await store.append(f);
@@ -93,6 +102,7 @@ async function withServer(
       client,
       store,
       dir: join(dir, "knowledge"),
+      usageLog,
       callTool: async (name, args) =>
         (await client.callTool({ name, arguments: args })) as unknown as ToolResult,
       readText: async (uri) => {
@@ -255,11 +265,13 @@ test("kb_add appends through the store: file lands on disk and the index regener
 
 test("kb_add id collision surfaces as a tool error with the store's message", async () => {
   await withServer(async ({ callTool, store }) => {
-    // "Alpha widget lesson" slugifies to the existing id alpha-widget-lesson.
+    // "Alpha widget lesson" slugifies to the existing id alpha-widget-lesson. force: true
+    // bypasses the WP4 near-duplicate refusal so this targets the STORE's collision guard.
     const res = await callTool("kb_add", {
       type: "lesson",
       title: "Alpha widget lesson",
       body: "Would collide.",
+      force: true,
     });
     expect(res.isError).toBe(true);
     expect(res.content[0]!.text).toBe('entry "alpha-widget-lesson" already exists');
@@ -269,15 +281,147 @@ test("kb_add id collision surfaces as a tool error with the store's message", as
 
 test("kb_add rejects a frontmatter-breaking title as a tool error, nothing written", async () => {
   await withServer(async ({ callTool, store }) => {
+    // force past dedup so this targets the store's frontmatter round-trip guard.
     const res = await callTool("kb_add", {
       type: "gotcha",
       title: "line one\nstatus: injected",
       body: "Injection attempt.",
+      force: true,
     });
     expect(res.isError).toBe(true);
     expect(res.content[0]!.text).toMatch(/single-line/);
     expect((await store.list()).length).toBe(FIXTURES.length); // nothing written
   });
+});
+
+// --- kb_add WP4 dedup refusal (+ force override) ------------------------------------
+
+test("kb_add refuses a near-duplicate of an active entry, naming the match, nothing written", async () => {
+  await withServer(async ({ callTool, store }) => {
+    // A re-worded copy of the seeded alpha-widget-lesson (shared title/tag/body tokens);
+    // scores ~0.71 cosine, over DUP_THRESHOLD (0.57).
+    const res = await callTool("kb_add", {
+      type: "lesson",
+      title: "Widget frobnication needs torque",
+      tags: ["widget", "frobnication"],
+      body: "Frobnicating the widget requires calibrated torque.",
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0]!.text).toContain("alpha-widget-lesson");
+    expect(res.content[0]!.text).toContain("force: true"); // the documented override
+    expect((await store.list()).length).toBe(FIXTURES.length); // refused before any write
+  });
+});
+
+test("kb_add force: true overrides the near-duplicate refusal and writes", async () => {
+  await withServer(async ({ callTool, store }) => {
+    const res = await callTool("kb_add", {
+      type: "lesson",
+      title: "Widget frobnication needs torque",
+      tags: ["widget", "frobnication"],
+      body: "Frobnicating the widget requires calibrated torque.",
+      force: true,
+    });
+    expect(res.isError).toBeUndefined();
+    expect(JSON.parse(res.content[0]!.text)).toEqual({ id: "widget-frobnication-needs-torque" });
+    expect(await store.get("widget-frobnication-needs-torque")).not.toBeNull();
+  });
+});
+
+test("kb_add writes a non-duplicate without force (dedup runs but finds no match)", async () => {
+  await withServer(async ({ callTool, store }) => {
+    const res = await callTool("kb_add", {
+      type: "decision",
+      title: "Gizmo calibration decision",
+      body: "Gizmos need periodic recalibration to stay accurate.",
+    });
+    expect(res.isError).toBeUndefined();
+    const out = JSON.parse(res.content[0]!.text) as { id: string };
+    expect(typeof out.id).toBe("string");
+    expect((await store.list()).length).toBe(FIXTURES.length + 1);
+  });
+});
+
+// --- kb_cite (WP5) — SINK-GATED -----------------------------------------------------
+
+test("kb_cite is ABSENT from tools/list when no usage log is configured", async () => {
+  await withServer(async ({ client }) => {
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain("kb_search");
+    expect(names).toContain("kb_add");
+    expect(names).not.toContain("kb_cite"); // sink-gated: no sink, no tool
+  });
+});
+
+test("kb_cite is registered when a usage log IS configured", async () => {
+  await withServer(
+    async ({ client }) => {
+      const names = (await client.listTools()).tools.map((t) => t.name);
+      expect(names).toContain("kb_cite");
+    },
+    { usageLog: true },
+  );
+});
+
+test("kb_cite appends a line that parseUsageLog round-trips", async () => {
+  await withServer(
+    async ({ callTool, usageLog }) => {
+      const res = await callTool("kb_cite", {
+        id: "alpha-widget-lesson",
+        source: "reflection:demo",
+      });
+      expect(res.isError).toBeUndefined();
+      expect(res.content[0]!.text).toContain("alpha-widget-lesson");
+
+      const events = parseUsageLog(await readFile(usageLog as string, "utf8"));
+      expect(events.length).toBe(1);
+      expect(events[0]!.id).toBe("alpha-widget-lesson");
+      expect(events[0]!.source).toBe("reflection:demo");
+      expect(events[0]!.citedAt.length).toBeGreaterThan(0);
+    },
+    { usageLog: true },
+  );
+});
+
+test("kb_cite appends (never rewrites) on a second citation", async () => {
+  await withServer(
+    async ({ callTool, usageLog }) => {
+      await callTool("kb_cite", { id: "alpha-widget-lesson" });
+      await callTool("kb_cite", { id: "beta-gadget-pattern", source: "s" });
+      const events = parseUsageLog(await readFile(usageLog as string, "utf8"));
+      expect(events.map((e) => e.id)).toEqual([
+        "alpha-widget-lesson",
+        "beta-gadget-pattern",
+      ]);
+    },
+    { usageLog: true },
+  );
+});
+
+test("kb_cite on an unknown id is a tool error, nothing appended", async () => {
+  await withServer(
+    async ({ callTool, usageLog }) => {
+      const res = await callTool("kb_cite", { id: "no-such-entry" });
+      expect(res.isError).toBe(true);
+      expect(res.content[0]!.text).toContain("no-such-entry");
+      expect(existsSync(usageLog as string)).toBe(false); // error path never touches the sink
+    },
+    { usageLog: true },
+  );
+});
+
+test("kb_cite on an archived entry still appends, with a warning in the result", async () => {
+  await withServer(
+    async ({ callTool, usageLog }) => {
+      // gamma-zorp-gotcha is superseded — history is history, so the citation still lands.
+      const res = await callTool("kb_cite", { id: "gamma-zorp-gotcha" });
+      expect(res.isError).toBeUndefined();
+      expect(res.content[0]!.text.toLowerCase()).toContain("warning");
+      const events = parseUsageLog(await readFile(usageLog as string, "utf8"));
+      expect(events.map((e) => e.id)).toEqual(["gamma-zorp-gotcha"]);
+    },
+    { usageLog: true },
+  );
 });
 
 // --- Self-gating on a missing KB dir (the main.ts posture) --------------------------
