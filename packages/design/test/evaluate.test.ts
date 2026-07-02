@@ -1,6 +1,9 @@
 import { test, expect } from "bun:test";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { MockDesignJudge, type DesignBrief, type DesignVerdict } from "../src/judge";
-import { runDesignEval, summarizeSystem, type DesignEvalSpec } from "../src/evaluate";
+import { runDesignEval, summarizeSystem, loadDesignEvalSpec, type DesignEvalSpec } from "../src/evaluate";
 import type { DesignSystemOutput } from "../src/derive";
 
 const brief: DesignBrief = { name: "objectcore", adjectives: ["modern", "trustworthy"], intent: "a developer-tooling brand" };
@@ -56,6 +59,20 @@ test("a 'fail' case (the on-brand bracket) passes when the score stays LOW", asy
   const spec: DesignEvalSpec = { brief, cases: [{ question: "playful?", expect: "fail", threshold: 0.6 }] };
   const [r] = await runDesignEval(spec, "summary", judgeFor(0.2));
   expect(r!.passed).toBe(true);
+});
+
+// ── loadDesignEvalSpec ──
+test("loadDesignEvalSpec: missing file is null; malformed file fails loudly, named", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "design-eval-"));
+  try {
+    expect(await loadDesignEvalSpec(dir)).toBeNull(); // ENOENT only → "not specified"
+    await mkdir(join(dir, "evals"), { recursive: true });
+    await writeFile(join(dir, "evals", "design.json"), "{ bad json,");
+    // A broken spec must never silently un-gate the judged layer.
+    expect(loadDesignEvalSpec(dir)).rejects.toThrow(/design\.json/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 // ── summarizeSystem ──

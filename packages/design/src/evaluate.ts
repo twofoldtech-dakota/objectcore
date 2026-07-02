@@ -77,12 +77,21 @@ export async function runDesignEval(
   return results;
 }
 
-/** Load `<dir>/evals/design.json` if present. */
+/** Load `<dir>/evals/design.json` if present. Only a MISSING file maps to null — a
+ *  malformed spec must fail loudly (labeled with the file path), not silently
+ *  un-gate the judged layer. */
 export async function loadDesignEvalSpec(dir: string): Promise<DesignEvalSpec | null> {
+  const file = `${dir}/evals/design.json`;
+  let raw: string;
   try {
-    const raw = await readFile(`${dir}/evals/design.json`, "utf8");
+    raw = await readFile(file, "utf8");
+  } catch (e) {
+    if ((e as { code?: string }).code === "ENOENT") return null;
+    throw e;
+  }
+  try {
     return JSON.parse(raw) as DesignEvalSpec;
-  } catch {
-    return null;
+  } catch (e) {
+    throw new Error(`${file}: ${(e as Error).message}`);
   }
 }

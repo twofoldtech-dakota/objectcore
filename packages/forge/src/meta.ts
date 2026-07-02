@@ -10,9 +10,14 @@
 // the caller injects it from objectcore.config.json's owner (single source).
 
 import type { ActivationCase } from "@objectcore/eval";
+import { FORGE_STUB_MARKER } from "./scaffold";
 import type { ComponentSpec, PluginSpec } from "./types";
 
-export type MetaArchetype = "governance" | "generator";
+/** The two archetypes, single-sourced: the type and the runtime guard both read
+ *  this list, so they can never drift. */
+export const META_ARCHETYPES = ["governance", "generator"] as const;
+
+export type MetaArchetype = (typeof META_ARCHETYPES)[number];
 
 export interface MetaSpecInput {
   archetype: MetaArchetype;
@@ -29,7 +34,11 @@ export interface MetaSpecInput {
   author?: { name: string; email?: string; url?: string };
 }
 
-/** Ensure at least one positive case targets the skill, so coverage passes. */
+/** Ensure at least one positive case targets the skill, so coverage passes. The
+ *  injected prompt is a near-verbatim echo of the trigger surface — trivially green
+ *  under any judge, so it is a PLACEHOLDER, not a real eval. Its note carries the
+ *  forge:todo stub marker (the same convention as unfilled bodies) so the
+ *  ship-readiness gate can refuse a meta-plugin that never replaced it. */
 function ensureCoverage(
   skillName: string,
   skillDescription: string,
@@ -40,14 +49,32 @@ function ensureCoverage(
     {
       prompt: `Help me with: ${skillDescription}`,
       expect: skillName,
-      note: "auto-added so the skill is gated — replace with a real positive prompt",
+      note: `${FORGE_STUB_MARKER} auto-added so the skill is gated — replace with a real positive prompt`,
     },
     ...cases,
   ];
 }
 
-/** Expand a meta-spec into a complete PluginSpec ready for scaffoldPlugin. */
+/** Expand a meta-spec into a complete PluginSpec ready for scaffoldPlugin.
+ *  A meta-spec arrives as parsed JSON (scripts/forge-meta.ts), so nothing upstream
+ *  has type-checked it — reject with the offending field named, matching
+ *  scaffold.ts's error style, instead of leaking a raw TypeError. */
 export function metaPluginSpec(input: MetaSpecInput): PluginSpec {
+  if (!META_ARCHETYPES.includes(input.archetype)) {
+    throw new Error(
+      `unknown archetype "${input.archetype}" (must be ${META_ARCHETYPES.map((a) => `"${a}"`).join(" | ")})`,
+    );
+  }
+  if (!input.name?.trim()) throw new Error("meta-spec needs a non-empty `name`");
+  if (!input.description?.trim()) {
+    throw new Error("meta-spec needs a non-empty `description`");
+  }
+  if (!input.skill?.name?.trim() || !input.skill.description?.trim()) {
+    throw new Error("meta-spec needs a `skill` with a name and description");
+  }
+  if (!input.command?.name?.trim() || !input.command.description?.trim()) {
+    throw new Error("meta-spec needs a `command` with a name and description");
+  }
   const keywords = Array.from(
     new Set(["objectcore", "meta", input.archetype, ...(input.keywords ?? [])]),
   );

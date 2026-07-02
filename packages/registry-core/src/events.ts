@@ -18,7 +18,8 @@ export interface TelemetryEvent {
   plugin?: string;
   /** The channel the event came from (e.g. "stable"/"canary"). Optional. */
   channel?: string;
-  /** A small bag of extra fields. Bounded in count + size; values are primitives. */
+  /** A small bag of extra fields. Bounded in key count, key length, and string
+   *  value length; values are primitives. */
   meta?: Record<string, string | number | boolean>;
 }
 
@@ -64,6 +65,9 @@ export type EventParseResult =
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const ALLOWED_FIELDS = new Set(["type", "plugin", "channel", "meta"]);
 const MAX_META_KEYS = 16;
+// Keys are stored payload too: an unbounded key is the same DB-flooding vector as an
+// unbounded value (ingestion can be tokenless), so both dimensions are capped.
+const MAX_META_KEY_LEN = 64;
 const MAX_STRING_LEN = 512;
 
 /** Strict, pure validation/shaping of an untrusted POST body into a TelemetryEvent —
@@ -108,6 +112,9 @@ export function parseEvent(input: unknown): EventParseResult {
     }
     const out: Record<string, string | number | boolean> = {};
     for (const k of keys) {
+      if (k.length > MAX_META_KEY_LEN) {
+        return { ok: false, error: `meta key ${k.slice(0, 32)}… exceeds ${MAX_META_KEY_LEN} chars` };
+      }
       const v = meta[k];
       const t = typeof v;
       if (t !== "string" && t !== "number" && t !== "boolean") {

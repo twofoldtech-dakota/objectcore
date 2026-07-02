@@ -54,7 +54,18 @@ export function planRelease(plugins: PluginVersion[], changesets: Changeset[]): 
   const releases: Release[] = [...agg.entries()]
     .map(([name, { bump, summaries }]) => {
       const oldVersion = versionByName.get(name) as string;
-      return { name, oldVersion, newVersion: bumpVersion(oldVersion, bump), bump, summaries };
+      let newVersion: string;
+      try {
+        newVersion = bumpVersion(oldVersion, bump);
+      } catch (e) {
+        // Name the plugin: an unbumpable current version (e.g. a prerelease, which
+        // parseVersion rejects by policy) would otherwise abort release:version with
+        // no hint which of the workspace's plugin.json files is bad.
+        throw new Error(
+          `plugin "${name}": ${(e as Error).message} — fix its plugin.json version before releasing`,
+        );
+      }
+      return { name, oldVersion, newVersion, bump, summaries };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 

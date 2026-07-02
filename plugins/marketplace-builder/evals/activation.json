@@ -11,6 +11,11 @@
       "note": "reasoning about the seam"
     },
     {
+      "prompt": "check:catalog says the committed marketplace.json doesn't match the derivation — how do I get the catalog back in sync?",
+      "expect": "building-the-catalog",
+      "note": "boundary pin vs validating-plugins: a drifted catalog is build territory, not manifest validation"
+    },
+    {
       "prompt": "What's the best pizza topping combination?",
       "expect": null,
       "note": "clear negative"

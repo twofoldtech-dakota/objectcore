@@ -33,7 +33,8 @@ export function renderIndex(entries: KnowledgeEntry[]): string {
     out.push(`## ${type}`);
     for (const e of group) {
       const tags = e.tags.length ? ` — _${e.tags.join(", ")}_` : "";
-      out.push(`- [${e.title}](entries/${e.id}.md)${tags}`);
+      // Escape link-text delimiters so a bracketed title still renders a valid link.
+      out.push(`- [${e.title.replace(/([\[\]])/g, "\\$1")}](entries/${e.id}.md)${tags}`);
     }
     out.push("");
   }

@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -168,4 +168,86 @@ test("scaffoldPlugin rejects non-kebab names and refuses to overwrite", async ()
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("manifest shape guards (keywords/version/author) reject BEFORE creating the plugin dir", async () => {
+  // Mirrors of registry-core's validateSchema, run pre-write: a JSON spec with a
+  // wrong-typed field must fail with nothing on disk, not leave a half-scaffold
+  // that validateSchema rejects post-write and --force has to clean up.
+  const dirExists = async (p: string) => {
+    try {
+      await stat(p);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const cases: { spec: unknown; throws: RegExp }[] = [
+    {
+      spec: { name: "bad-kw", description: "x", keywords: "objectcore", commands: [{ name: "c", description: "d" }] },
+      throws: /`keywords` must be an array of strings/,
+    },
+    {
+      spec: { name: "bad-ver", description: "x", version: 1, commands: [{ name: "c", description: "d" }] },
+      throws: /`version` must be a string/,
+    },
+    {
+      spec: { name: "bad-author", description: "x", author: "dakota", commands: [{ name: "c", description: "d" }] },
+      throws: /`author` must be an object with a non-empty string `name`/,
+    },
+  ];
+  const dir = await tmp();
+  try {
+    for (const c of cases) {
+      await expect(scaffoldPlugin(c.spec as PluginSpec, dir)).rejects.toThrow(c.throws);
+      expect(await dirExists(join(dir, (c.spec as PluginSpec).name))).toBe(false);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("metaPluginSpec rejects a bogus archetype with the legal values named", () => {
+  expect(() =>
+    metaPluginSpec({
+      archetype: "banana" as never,
+      name: "p",
+      description: "x",
+      skill: { name: "s", description: "d" },
+      command: { name: "c", description: "d" },
+    }),
+  ).toThrow(/unknown archetype "banana" \(must be "governance" \| "generator"\)/);
+});
+
+test("metaPluginSpec rejects a meta-spec missing its skill or command (no raw TypeError)", () => {
+  const base = { archetype: "governance" as const, name: "p", description: "x" };
+  expect(() =>
+    metaPluginSpec({ ...base, command: { name: "c", description: "d" } } as never),
+  ).toThrow(/meta-spec needs a `skill` with a name and description/);
+  expect(() =>
+    metaPluginSpec({ ...base, skill: { name: "s", description: "d" } } as never),
+  ).toThrow(/meta-spec needs a `command` with a name and description/);
+  expect(() =>
+    metaPluginSpec({
+      ...base,
+      name: "  ",
+      skill: { name: "s", description: "d" },
+      command: { name: "c", description: "d" },
+    }),
+  ).toThrow(/non-empty `name`/);
+});
+
+test("metaPluginSpec's auto-added placeholder case carries the forge:todo stub marker", () => {
+  // The injected prompt echoes the trigger surface (trivially green under any
+  // judge), so it is marked with the SAME sentinel as unfilled bodies — the
+  // ship-readiness gate can then refuse a meta-plugin that never replaced it.
+  const spec = metaPluginSpec({
+    archetype: "generator",
+    name: "gen-things",
+    description: "Generates things.",
+    skill: { name: "thing-making", description: "Use when making things." },
+    command: { name: "make-thing", description: "Make a thing." },
+  });
+  const placeholder = spec.activation?.find((c) => c.expect === "thing-making");
+  expect(placeholder?.note).toContain("<!-- forge:todo -->");
 });

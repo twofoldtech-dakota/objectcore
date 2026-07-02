@@ -1,0 +1,41 @@
+{
+  "//": "OPT-IN dogfood wiring for the factory's own agentic loop (plan 008 F2/F3/F4). The kb-writer and reflection plugins ship these hooks to consuming projects via the catalog, but sessions in THIS repo don't have the plugins installed — so the loop the docs describe never actually fires here. Rename this file to settings.json (or merge into settings.local.json) to close the loop: KB index surfaced at session start, reflection nudge on a red gate, lesson-capture prompt on stop. Hook cwd is the project root, so paths are repo-relative.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun plugins/kb-writer/hooks/load-kb.ts",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun plugins/reflection/hooks/on-gate-failure.ts",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Before stopping: did this session produce a durable lesson, pattern, gotcha, or decision worth keeping? If so, capture it in the project knowledge base (use the curating-knowledge skill or `bun run kb:add`). If nothing durable emerged, just stop.",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

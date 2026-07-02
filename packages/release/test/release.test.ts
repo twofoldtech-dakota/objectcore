@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { bumpVersion, maxBump } from "../src/semver";
+import { bumpVersion, maxBump, parseVersion } from "../src/semver";
 import { parseChangeset } from "../src/changeset";
 import { planRelease } from "../src/plan";
 import { renderChangelogEntry, prependChangelog } from "../src/changelog";
@@ -10,6 +10,17 @@ test("bumpVersion follows straight semver", () => {
   expect(bumpVersion("1.2.3", "patch")).toBe("1.2.4");
   expect(bumpVersion("1.2.3", "minor")).toBe("1.3.0");
   expect(bumpVersion("1.2.3", "major")).toBe("2.0.0");
+});
+
+test("parseVersion is strict MAJOR.MINOR.PATCH — prerelease is reserved for the publish path", () => {
+  expect(parseVersion("1.2.3")).toEqual({ major: 1, minor: 2, patch: 3 });
+  // Policy pin: prerelease/build identifiers are legal on registry-core's permissive
+  // SEMVER wire floor (POST /v1/plugins accepts an external 2.0.0-rc.1) but are NOT
+  // bumpable — the release engine refuses them rather than guessing bump semantics.
+  expect(() => parseVersion("1.0.0-rc.1")).toThrow(/invalid semver/);
+  expect(() => parseVersion("1.0.0+build")).toThrow(/invalid semver/);
+  expect(() => parseVersion("v1.0.0")).toThrow(/invalid semver/);
+  expect(() => parseVersion("1.0")).toThrow(/invalid semver/);
 });
 
 test("maxBump picks the larger bump", () => {
@@ -49,6 +60,17 @@ test("planRelease aggregates overlapping bumps (max wins) and sorts", () => {
   ]);
   // both summaries collected for the plugin touched twice
   expect(plan.releases[0]!.summaries.length).toBe(2);
+});
+
+test("planRelease names the plugin whose current version is unbumpable", () => {
+  // A prerelease current version can enter the registry over the OIDC path but can't
+  // be bumped; the plan must say WHICH plugin.json is bad, not die anonymously.
+  expect(() =>
+    planRelease(
+      [{ name: "rc-plugin", version: "1.0.0-rc.1" }],
+      [parseChangeset("a", `---\n"rc-plugin": patch\n---\nfix`)],
+    ),
+  ).toThrow(/plugin "rc-plugin".*1\.0\.0-rc\.1/);
 });
 
 test("planRelease flags changesets that name unknown plugins", () => {

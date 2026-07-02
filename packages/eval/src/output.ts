@@ -3,25 +3,39 @@
 // by checking the catalog is *good* — entries describe themselves, and each
 // plugin's intent (its optional evals/output.json) matches what was derived.
 
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type {
   MarketplaceJson,
   MarketplaceEntry,
   WorkspacePlugin,
 } from "@objectcore/registry-core";
 import type { EvalResult, OutputSpec } from "./types";
+import {
+  isSpecLoadError,
+  loadSpec,
+  specUnreadableResult,
+  type SpecLoadError,
+} from "./spec";
 
-/** Load `<plugin>/evals/output.json` if present. */
+/** Shape floor: `expectEntry`, when present, must be a plain object — a corrupted
+ *  output.json silently dropping every expectEntry assertion would also drop the
+ *  release:version lockstep protection with no signal. */
+function outputShapeProblem(parsed: unknown): string | null {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return "spec must be an object";
+  }
+  const ee = (parsed as { expectEntry?: unknown }).expectEntry;
+  if (ee !== undefined && (typeof ee !== "object" || ee === null || Array.isArray(ee))) {
+    return "`expectEntry` must be a plain object";
+  }
+  return null;
+}
+
+/** Load `<plugin>/evals/output.json`. null means the file does not exist; a
+ *  present-but-broken file returns the SpecLoadError sentinel (fail closed). */
 export async function loadOutputSpec(
   plugin: WorkspacePlugin,
-): Promise<OutputSpec | null> {
-  try {
-    const raw = await readFile(join(plugin.dir, "evals", "output.json"), "utf8");
-    return JSON.parse(raw) as OutputSpec;
-  } catch {
-    return null;
-  }
+): Promise<OutputSpec | null | SpecLoadError> {
+  return loadSpec<OutputSpec>(plugin, "output.json", outputShapeProblem);
 }
 
 function deepEqual(a: unknown, b: unknown): boolean {
@@ -99,7 +113,9 @@ export async function runOutputEvals(
   }
   for (const plugin of plugins) {
     const spec = await loadOutputSpec(plugin);
-    if (spec) {
+    if (isSpecLoadError(spec)) {
+      results.push(specUnreadableResult("output", plugin, spec));
+    } else if (spec) {
       results.push(...checkExpectedEntry(plugin, byName.get(plugin.manifest.name), spec));
     }
   }

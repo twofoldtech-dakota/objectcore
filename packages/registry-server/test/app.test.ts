@@ -75,6 +75,56 @@ test("GET /v1/search filters the derived catalog", async () => {
   expect(res.status).toBe(200);
   const body = (await res.json()) as { count: number; plugins: { name: string }[] };
   expect(body.plugins.map((p) => p.name)).toEqual(["alpha-plugin"]);
+  expect(res.headers.get("cache-control")).toBe("public, max-age=60");
+});
+
+// ── caching (Cache-Control + ETag) ───────────────────────────────────────────
+
+test("catalog routes carry Cache-Control and a deterministic ETag", async () => {
+  const app = createApp({
+    source: new MockSource(fixture),
+    derive: base,
+    channels: () => ({ source: new MockSource(canaryFixture), derive: base }),
+  });
+  const res = await app.request("/v1/marketplace.json");
+  expect(res.headers.get("cache-control")).toBe("public, max-age=60");
+  const etag = res.headers.get("etag");
+  expect(etag).toMatch(/^"[0-9a-f]{64}"$/); // sha256 of the body — same catalog, same tag
+  expect((await app.request("/v1/marketplace.json")).headers.get("etag")).toBe(etag);
+
+  const ch = await app.request("/v1/canary/marketplace.json");
+  expect(ch.headers.get("cache-control")).toBe("public, max-age=60");
+  expect(ch.headers.get("etag")).toMatch(/^"[0-9a-f]{64}"$/);
+  expect(ch.headers.get("etag")).not.toBe(etag); // different catalog, different tag
+});
+
+test("If-None-Match with the current ETag yields 304; a stale one yields the body", async () => {
+  const app = createApp({ source: new MockSource(fixture), derive: base });
+  const etag = (await app.request("/v1/marketplace.json")).headers.get("etag")!;
+
+  const cached = await app.request("/v1/marketplace.json", { headers: { "if-none-match": etag } });
+  expect(cached.status).toBe(304);
+  expect(cached.headers.get("etag")).toBe(etag);
+
+  const stale = await app.request("/v1/marketplace.json", { headers: { "if-none-match": '"deadbeef"' } });
+  expect(stale.status).toBe(200);
+  const catalog = (await stale.json()) as MarketplaceJson;
+  expect(catalog.plugins.map((p) => p.name)).toEqual(["alpha-plugin", "beta-plugin"]);
+});
+
+// ── error handling on the seam ───────────────────────────────────────────────
+
+test("a throwing source yields a JSON 500, never Hono's text/plain default", async () => {
+  class BrokenSource implements CatalogSource {
+    async listPlugins(): Promise<WorkspacePlugin[]> {
+      throw new Error("turso blip");
+    }
+  }
+  const app = createApp({ source: new BrokenSource(), derive: base });
+  const res = await app.request("/v1/marketplace.json");
+  expect(res.status).toBe(500);
+  expect(res.headers.get("content-type")).toContain("application/json");
+  expect(await res.json()).toEqual({ error: "internal error" }); // no internals leaked
 });
 
 test("GET /healthz", async () => {
@@ -176,6 +226,22 @@ test("POST /v1/events enforces the shared-secret token when eventsToken is set",
   expect(await events.count()).toBe(1);
 });
 
+test("POST /v1/events rejects an oversized body with 413 before parsing", async () => {
+  const events = new InMemoryEventStore();
+  const app = createApp({ source: new MockSource(fixture), derive: base, events });
+  const res = await postEvent(app, { type: "install", pad: "x".repeat(40 * 1024) });
+  expect(res.status).toBe(413);
+  expect(await events.count()).toBe(0);
+});
+
+test("a wrong-length events token is still a plain 401 (hash-then-compare has no length precondition)", async () => {
+  const events = new InMemoryEventStore();
+  const app = createApp({ source: new MockSource(fixture), derive: base, events, eventsToken: "s3cret" });
+  const res = await postEvent(app, { type: "install" }, { authorization: "Bearer x" });
+  expect(res.status).toBe(401);
+  expect(await events.count()).toBe(0);
+});
+
 test("the marketplace seam still serves with a telemetry sink wired", async () => {
   const app = createApp({ source: new MockSource(fixture), derive: base, events: new InMemoryEventStore() });
   const catalog = (await (await app.request("/v1/marketplace.json")).json()) as MarketplaceJson;
@@ -245,6 +311,17 @@ test("POST /v1/plugins publishes a valid request (201) and writes it to the stor
   expect(rows[0].ref).toBe("hello-objectcore--v0.1.0");
 });
 
+test("POST /v1/plugins maps an immutable-version conflict to 409 (identical re-publish stays 201)", async () => {
+  const { app } = publishApp();
+  expect((await post(app, publishBody, "tok-ok")).status).toBe(201);
+  // Idempotent re-publish of identical content: not a conflict.
+  expect((await post(app, publishBody, "tok-ok")).status).toBe(201);
+  // Same version, different sha: the store's first-write-wins throw surfaces as 409.
+  const drifted = await post(app, { ...publishBody, sha: "def5678" }, "tok-ok");
+  expect(drifted.status).toBe(409);
+  expect(((await drifted.json()) as { error: string }).error).toMatch(/immutable/i);
+});
+
 test("POST /v1/plugins is absent (404) when publish is not configured", async () => {
   const app = createApp({ source: new MockSource([]), derive: base });
   expect((await post(app, publishBody, "tok-ok")).status).toBe(404);
@@ -279,4 +356,34 @@ test("POST /v1/plugins re-enforces the provenance gate (422 without attestation,
   const attested = await post(app, { ...mcpBody, provenance: { ref: "att://x" } }, "tok-ok");
   expect(attested.status).toBe(201);
   expect((await store.listLatest("stable"))[0].provenance).toEqual({ ref: "att://x" });
+});
+
+test("POST /v1/plugins rejects `provenance: null` — presence alone must not clear the gate (400)", async () => {
+  const { app, store } = publishApp();
+  const mcpBody = { ...publishBody, manifest: { ...publishBody.manifest, mcpServers: ".mcp.json" } };
+  const res = await post(app, { ...mcpBody, provenance: null }, "tok-ok");
+  expect(res.status).toBe(400);
+  expect((await store.listLatest("stable")).length).toBe(0);
+});
+
+test("POST /v1/plugins binds repoUrl to the token's repository claim (403 on mismatch)", async () => {
+  const { app, store } = publishApp();
+  const spoofed = await post(app, { ...publishBody, repoUrl: "https://github.com/attacker/other" }, "tok-ok");
+  expect(spoofed.status).toBe(403);
+  expect((await store.listLatest("stable")).length).toBe(0);
+
+  // Case and a trailing .git are cosmetic, not identity — still the claimed repo.
+  const cosmetic = await post(
+    app,
+    { ...publishBody, repoUrl: "https://github.com/Twofoldtech-Dakota/ObjectCore.git" },
+    "tok-ok",
+  );
+  expect(cosmetic.status).toBe(201);
+});
+
+test("POST /v1/plugins rejects an oversized body with 413 before parsing", async () => {
+  const { app, store } = publishApp();
+  const res = await post(app, { ...publishBody, pad: "x".repeat(600 * 1024) }, "tok-ok");
+  expect(res.status).toBe(413);
+  expect((await store.listLatest("stable")).length).toBe(0);
 });

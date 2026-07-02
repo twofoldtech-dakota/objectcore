@@ -22,20 +22,44 @@ if (errors.length) {
   process.exit(1);
 }
 
-// 2. Sync check — must match GitFileSink's exact serialization.
+// 2. Sync check — must match GitFileSink's exact serialization (strict bytes;
+//    the .gitattributes LF pin is what keeps Windows checkouts honest).
 const expected = JSON.stringify(catalog, null, 2) + "\n";
 const committedPath = join(root, ".claude-plugin", "marketplace.json");
 let committed = "";
+let missing = false;
 try {
   committed = readFileSync(committedPath, "utf8");
 } catch {
-  /* missing — treated as out of date below */
+  missing = true;
+}
+if (missing) {
+  console.error("✗ .claude-plugin/marketplace.json is missing — run `bun run build:marketplace`.");
+  process.exit(1);
 }
 if (committed !== expected) {
-  console.error(
-    "✗ .claude-plugin/marketplace.json is out of date or hand-edited — " +
-      "run `bun run build:marketplace` and commit the result.",
-  );
+  if (committed.replace(/\r\n/g, "\n") === expected) {
+    // The known Windows autocrlf gotcha: content is right, line endings aren't.
+    console.error(
+      "✗ .claude-plugin/marketplace.json content matches but line endings are CRLF — " +
+        "the .gitattributes LF pin didn't apply to your working copy. Run " +
+        "`bun run build:marketplace` (or `git checkout -- .claude-plugin/marketplace.json`) " +
+        "and check core.autocrlf.",
+    );
+  } else {
+    const got = committed.split("\n");
+    const want = expected.split("\n");
+    const n = Math.max(got.length, want.length);
+    let line = 0;
+    while (line < n && got[line] === want[line]) line++;
+    console.error(`✗ first difference at line ${line + 1}:`);
+    console.error(`    committed: ${got[line] ?? "<missing line>"}`);
+    console.error(`    derived:   ${want[line] ?? "<missing line>"}`);
+    console.error(
+      "✗ .claude-plugin/marketplace.json is out of date or hand-edited — " +
+        "run `bun run build:marketplace` and commit the result.",
+    );
+  }
   process.exit(1);
 }
 

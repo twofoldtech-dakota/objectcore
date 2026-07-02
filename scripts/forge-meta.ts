@@ -25,8 +25,10 @@ const input = JSON.parse(readFileSync(specPath, "utf8")) as MetaSpecInput;
 const spec = metaPluginSpec(input);
 spec.author ??= cfg.owner; // identity from the single source
 
-const { dir, written } = await scaffoldPlugin(spec, pluginsDir, { force });
+const { dir, written, removed } = await scaffoldPlugin(spec, pluginsDir, { force });
 console.log(`✓ scaffolded meta-plugin ${spec.name} (${input.archetype}) -> ${dir.slice(root.length + 1)}`);
+// Stale artifacts a --force re-scaffold dropped (the spec is the full definition).
+for (const r of removed) console.log(`    - ${r.slice(root.length + 1)} (stale — removed)`);
 for (const w of written) console.log(`    + ${w.slice(root.length + 1)}`);
 
 const green = await syncAndGate(root);

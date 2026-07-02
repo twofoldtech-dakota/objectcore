@@ -2,8 +2,13 @@
 //
 // The DB stores RAW manifests + pin coordinates, never finished catalog entries —
 // `deriveCatalog` still shapes entries at read time, preserving the single
-// derivation path. `plugin_versions` is append-only (the unit Stage 2 publishes);
-// `channels` points each plugin to its current published version per channel.
+// derivation path. `plugin_versions` is first-write-wins/immutable (the unit
+// Stage 2 publishes): a re-publish of an existing (plugin_name, version) may only
+// backfill/update `provenance` — anything else throws (see immutable.ts). This
+// means DB-served pins keep each version's ORIGINAL release sha and may
+// intentionally differ from the latest dist/marketplace.pinned.json (which
+// re-pins everything to HEAD) — that divergence IS the immutability contract,
+// not drift. `channels` points each plugin to its current version per channel.
 
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS plugins (

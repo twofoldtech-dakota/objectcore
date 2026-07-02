@@ -25,10 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history so the rebase-and-retry push always has a merge base
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
 
       - name: Install (frozen lockfile)
         run: bun install --frozen-lockfile
@@ -44,6 +46,12 @@ jobs:
       - name: Record score (only if it moved)
         run: bun run eval:record --if-changed --note "main @ ${{ github.sha }} (CI)"
 
+      # The eval step above can take minutes, so main may have moved by the time we
+      # push — a plain `git push` would fail non-fast-forward and silently drop the
+      # OQ4 datapoint (unrecoverable: --if-changed only re-records when the score
+      # moves again). Rebase and retry: the concurrency group serializes this workflow
+      # against itself, so any conflicting push is an unrelated commit and the single
+      # JSONL-append commit rebases cleanly on top of it.
       - name: Commit the appended line
         run: |
           if git diff --quiet -- metrics/eval-history.jsonl; then
@@ -54,4 +62,12 @@ jobs:
           git config user.email "noreply@objectcore.ai"
           git add metrics/eval-history.jsonl
           git commit -m "chore(metrics): record eval-history for ${{ github.sha }} [skip ci]"
-          git push
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt/3) — rebasing onto main and retrying."
+            git pull --rebase origin main
+          done
+          echo "::error::failed to push the eval-history datapoint after 3 attempts" >&2
+          exit 1

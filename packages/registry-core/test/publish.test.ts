@@ -2,6 +2,7 @@ import { test, expect } from "bun:test";
 import {
   authorizePublish,
   parsePublish,
+  repoUrlMatchesClaim,
   toStoredPlugin,
   MockOidcVerifier,
   type OidcClaims,
@@ -40,6 +41,33 @@ test("authorizePublish rejects a wrong issuer / audience / repo / missing repo",
   expect(authorizePublish({ ...goodClaims, repository: "attacker/fork" }, policy).ok).toBe(false);
   const { repository, ...noRepo } = goodClaims;
   expect(authorizePublish(noRepo as OidcClaims, policy).ok).toBe(false);
+});
+
+test("authorizePublish without allowedRefs accepts any ref (back-compat)", () => {
+  expect(authorizePublish({ ...goodClaims, ref: "refs/heads/anything" }, policy)).toEqual({ ok: true });
+});
+
+test("authorizePublish restricts refs when allowedRefs is set — missing ref fails closed", () => {
+  const refPolicy: PublishPolicy = { ...policy, allowedRefs: ["refs/heads/main"] };
+  expect(authorizePublish({ ...goodClaims, ref: "refs/heads/main" }, refPolicy)).toEqual({ ok: true });
+
+  const wrongBranch = authorizePublish({ ...goodClaims, ref: "refs/heads/attacker-branch" }, refPolicy);
+  expect(wrongBranch.ok).toBe(false);
+  if (!wrongBranch.ok) expect(wrongBranch.error).toMatch(/ref not allowed/);
+
+  const noRef = authorizePublish(goodClaims, refPolicy); // GitHub always sets ref; absence = fail closed
+  expect(noRef.ok).toBe(false);
+  if (!noRef.ok) expect(noRef.error).toMatch(/missing ref claim/);
+});
+
+test("repoUrlMatchesClaim binds the pin to the repository claim (case-insensitive, .git tolerated)", () => {
+  const repo = "twofoldtech-dakota/objectcore";
+  expect(repoUrlMatchesClaim("https://github.com/twofoldtech-dakota/objectcore", repo)).toBe(true);
+  expect(repoUrlMatchesClaim("https://github.com/Twofoldtech-Dakota/ObjectCore.git", repo)).toBe(true);
+  expect(repoUrlMatchesClaim("https://github.com/twofoldtech-dakota/objectcore/", repo)).toBe(true);
+  expect(repoUrlMatchesClaim("https://github.com/attacker/objectcore", repo)).toBe(false);
+  expect(repoUrlMatchesClaim("https://evil.example/twofoldtech-dakota/objectcore", repo)).toBe(false);
+  expect(repoUrlMatchesClaim("https://github.com/twofoldtech-dakota/objectcore", "")).toBe(false);
 });
 
 test("MockOidcVerifier maps known tokens and throws on unknown", async () => {
@@ -82,6 +110,16 @@ test("parsePublish reuses the strict manifest schema floor (unknown manifest fie
   const r = parsePublish({ ...goodBody, manifest: { name: "hello-objectcore", repositry: "typo" } });
   expect(r.ok).toBe(false);
   if (!r.ok) expect(r.error).toMatch(/unknown manifest field/);
+});
+
+test("parsePublish rejects non-object / oversized provenance (presence alone must not clear the gate)", () => {
+  expect(parsePublish({ ...goodBody, provenance: null }).ok).toBe(false);
+  expect(parsePublish({ ...goodBody, provenance: "x" }).ok).toBe(false);
+  expect(parsePublish({ ...goodBody, provenance: 1 }).ok).toBe(false);
+  expect(parsePublish({ ...goodBody, provenance: [{ ref: "att://x" }] }).ok).toBe(false);
+  const oversized = parsePublish({ ...goodBody, provenance: { blob: "x".repeat(9000) } });
+  expect(oversized.ok).toBe(false);
+  if (!oversized.ok) expect(oversized.error).toMatch(/provenance exceeds/);
 });
 
 test("parsePublish carries bundlesMcp + provenance through", () => {

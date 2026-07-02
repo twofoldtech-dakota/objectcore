@@ -20,6 +20,16 @@ export class FileKnowledgeStore implements KnowledgeStore {
     return join(this.dir, "entries");
   }
 
+  /** Parse one on-disk entry, labeling any parse failure with the file path — a
+   *  corrupt entry must surface as corruption, never masquerade as missing. */
+  private parseFile(id: string, file: string, raw: string): KnowledgeEntry {
+    try {
+      return parseEntry(id, raw);
+    } catch (e) {
+      throw new Error(`corrupt knowledge entry ${file}: ${(e as Error).message}`);
+    }
+  }
+
   async list(): Promise<KnowledgeEntry[]> {
     let files: string[];
     try {
@@ -31,17 +41,24 @@ export class FileKnowledgeStore implements KnowledgeStore {
     for (const f of files.sort()) {
       if (!f.endsWith(".md")) continue;
       const id = f.slice(0, -3);
-      entries.push(parseEntry(id, await readFile(join(this.entriesDir(), f), "utf8")));
+      const file = join(this.entriesDir(), f);
+      entries.push(this.parseFile(id, file, await readFile(file, "utf8")));
     }
     return entries;
   }
 
   async get(id: string): Promise<KnowledgeEntry | null> {
+    const file = join(this.entriesDir(), `${id}.md`);
+    let raw: string;
     try {
-      return parseEntry(id, await readFile(join(this.entriesDir(), `${id}.md`), "utf8"));
-    } catch {
-      return null;
+      raw = await readFile(file, "utf8");
+    } catch (e) {
+      // Only "missing" maps to null; anything else (including corruption, below)
+      // must throw, so append()'s collision check can never clobber a corrupt entry.
+      if ((e as { code?: string }).code === "ENOENT") return null;
+      throw e;
     }
+    return this.parseFile(id, file, raw);
   }
 
   async append(input: KnowledgeEntryInput): Promise<KnowledgeEntry> {
@@ -54,13 +71,24 @@ export class FileKnowledgeStore implements KnowledgeStore {
       type: input.type,
       title: input.title,
       tags: input.tags ?? [],
-      source: input.source,
+      source: input.source || undefined, // "" is "no source" — the file form can't distinguish them
       created: input.created ?? today(),
       body: input.body.trimEnd() + "\n",
     };
 
+    // Round-trip guard: serialize (which rejects frontmatter-breaking fields), then
+    // prove parseEntry recovers the exact entry BEFORE anything touches disk. One bad
+    // append must never brick the store (list()/kb:index/kb:check all reparse it).
+    const text = serializeEntry(entry);
+    const round = roundTrips(entry, text);
+    if (round !== true) {
+      throw new Error(
+        `entry "${id}": ${round} would not survive the frontmatter round-trip — nothing was written`,
+      );
+    }
+
     await mkdir(this.entriesDir(), { recursive: true });
-    await writeFile(join(this.entriesDir(), `${id}.md`), serializeEntry(entry), "utf8");
+    await writeFile(join(this.entriesDir(), `${id}.md`), text, "utf8");
     await this.writeIndex();
     return entry;
   }
@@ -71,6 +99,24 @@ export class FileKnowledgeStore implements KnowledgeStore {
     await writeFile(join(this.dir, "INDEX.md"), text, "utf8");
     return text;
   }
+}
+
+/** True when `text` parses back to exactly `entry`; otherwise the name of the
+ *  first field that drifted (parseEntry trims values, so e.g. a padded title is lossy). */
+function roundTrips(entry: KnowledgeEntry, text: string): true | string {
+  let parsed: KnowledgeEntry;
+  try {
+    parsed = parseEntry(entry.id, text);
+  } catch (e) {
+    return (e as Error).message;
+  }
+  if (parsed.type !== entry.type) return "field `type`";
+  if (parsed.title !== entry.title) return "field `title`";
+  if (parsed.source !== entry.source) return "field `source`";
+  if (parsed.created !== entry.created) return "field `created`";
+  if (JSON.stringify(parsed.tags) !== JSON.stringify(entry.tags)) return "field `tags`";
+  if (parsed.body !== entry.body) return "field `body`";
+  return true;
 }
 
 function slugify(title: string): string {

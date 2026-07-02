@@ -68,3 +68,45 @@ test("a non-string repository is rejected", async () => {
   const issues = await validateAll(bad, cat);
   expect(issues.some((i) => i.message.includes("`repository` must be a string"))).toBe(true);
 });
+
+test("a string keywords is rejected (hard invariant #4)", async () => {
+  const bad: WorkspacePlugin[] = [
+    { manifest: { name: "bad-plugin", keywords: "not-array" as never }, dir: "/x/plugins/bad-plugin", relDir: "bad-plugin" },
+  ];
+  const cat = deriveCatalog(bad, opts);
+  const issues = await validateAll(bad, cat);
+  expect(issues.some((i) => i.message.includes("`keywords` must be an array"))).toBe(true);
+});
+
+test("a non-kebab-case name is rejected (hard invariant #4)", async () => {
+  const bad: WorkspacePlugin[] = [
+    { manifest: { name: "Bad_Name" }, dir: "/x/plugins/Bad_Name", relDir: "Bad_Name" },
+  ];
+  const cat = deriveCatalog(bad, opts);
+  const issues = await validateAll(bad, cat);
+  expect(issues.some((i) => i.message.includes("`name` must be kebab-case"))).toBe(true);
+});
+
+test("a missing name is rejected", async () => {
+  const bad: WorkspacePlugin[] = [
+    { manifest: { name: "" }, dir: "/x/plugins/anon", relDir: "anon" },
+  ];
+  const cat = deriveCatalog(bad, opts);
+  const issues = await validateAll(bad, cat);
+  expect(issues.some((i) => i.message.includes("manifest missing required `name`"))).toBe(true);
+});
+
+test("a duplicated catalog entry fails the sync invariant", async () => {
+  // deriveCatalog maps 1:1, so a duplicate must be hand-injected (like the ghost test).
+  const cat = deriveCatalog(fixture, opts);
+  cat.plugins.push({ ...cat.plugins[0]! });
+  const issues = await validateAll(fixture, cat);
+  expect(issues.some((i) => i.message.includes("duplicate catalog entry"))).toBe(true);
+});
+
+test("a plugin dir with no catalog entry fails the sync invariant", async () => {
+  const cat = deriveCatalog(fixture, opts);
+  cat.plugins.pop();
+  const issues = await validateAll(fixture, cat);
+  expect(issues.some((i) => i.message.includes("plugin dir has no catalog entry"))).toBe(true);
+});

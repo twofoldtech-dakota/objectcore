@@ -47,8 +47,11 @@ try {
 
 const command = event.tool_input?.command ?? "";
 // Only react to a gate run; ordinary Bash calls must not pay for this hook.
+// `(?![\w:-])` keeps non-evidence-writing siblings (`check:catalog`, `eval:trend`,
+// `eval:record`) from matching — only `bun run check` / `bun run eval` write
+// dist/eval-evidence.json, so only they may trigger reflection.
 const isGateRun =
-  event.tool_name === "Bash" && /\bbun\s+(run\s+)?(check|eval)\b/.test(command);
+  event.tool_name === "Bash" && /\bbun\s+(run\s+)?(check|eval)(?![\w:-])/.test(command);
 if (!isGateRun) process.exit(0);
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -62,6 +65,12 @@ try {
 }
 
 if (evidence.green) process.exit(0); // gate passed — no reflection needed
+
+// Staleness guard: `bun run check` can go red BEFORE eval runs (tsc, check:catalog),
+// leaving the previous run's evidence on disk. Old evidence is not this run's
+// verdict — stay silent rather than report a stale red as fresh.
+const ageMs = Date.now() - Date.parse(evidence.generatedAt);
+if (!Number.isFinite(ageMs) || ageMs > 10 * 60 * 1000) process.exit(0);
 
 const failureLines = evidence.failures
   .slice(0, 12)

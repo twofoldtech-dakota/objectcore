@@ -51,6 +51,25 @@ test("derived text/background pairs actually meet WCAG by construction, in BOTH 
   }
 });
 
+test("text holds on ALL canvas-class backgrounds (canvas/subtle/surface), both themes", () => {
+  // The semantic set puts text on three neutral bg steps, not just the canvas —
+  // solveTextL targets the worst-case step 3, so all nine pairs must gate clean.
+  const { source } = scaffoldDesignSystem(spec);
+  const out = deriveDesignSystem(source);
+  expect(out.themes.length).toBe(2);
+  for (const theme of out.themes) {
+    const get = (p: string) => theme.tokens.find((t) => t.path === p)?.value;
+    for (const bg of ["bg.canvas", "bg.subtle", "bg.surface"]) {
+      const pairs = checkContrast([
+        { label: `${theme.name}: text.primary on ${bg}`, fg: get("text.primary"), bg: get(bg), level: "AAA" },
+        { label: `${theme.name}: text.subtle on ${bg}`, fg: get("text.subtle"), bg: get(bg) },
+        { label: `${theme.name}: accent.text on ${bg}`, fg: get("accent.text"), bg: get(bg) },
+      ]);
+      expect(pairs.filter((i) => i.level === "error")).toEqual([]);
+    }
+  }
+});
+
 test("scaffold produces a starter design.json with an on-brand bracket", () => {
   const { evalSpec } = scaffoldDesignSystem(spec);
   expect(evalSpec.brief.adjectives).toEqual(["modern", "trustworthy"]);

@@ -25,8 +25,10 @@ const spec = JSON.parse(readFileSync(specPath, "utf8")) as PluginSpec;
 // Identity lives in objectcore.config.json — default the author to the owner.
 spec.author ??= cfg.owner;
 
-const { dir, written } = await scaffoldPlugin(spec, pluginsDir, { force });
+const { dir, written, removed } = await scaffoldPlugin(spec, pluginsDir, { force });
 console.log(`✓ scaffolded ${spec.name} -> ${dir.slice(root.length + 1)}`);
+// Stale artifacts a --force re-scaffold dropped (the spec is the full definition).
+for (const r of removed) console.log(`    - ${r.slice(root.length + 1)} (stale — removed)`);
 for (const w of written) console.log(`    + ${w.slice(root.length + 1)}`);
 
 const green = await syncAndGate(root);

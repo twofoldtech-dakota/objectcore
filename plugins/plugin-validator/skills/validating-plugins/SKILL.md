@@ -1,6 +1,6 @@
 ---
 name: validating-plugins
-description: The reference for what makes an ObjectCore plugin and marketplace valid — the hard load-error rules, the catalog-sync invariant, and activation-eval coverage. Use when a plugin fails to load or validate, when reviewing a plugin before it enters the catalog, or when diagnosing why marketplace.json is rejected.
+description: The reference for what makes an ObjectCore plugin valid — the hard load-error rules (manifest shape, kebab-case, component placement) and the eval-coverage gate. Use when a plugin fails to load or validate, when reviewing a plugin before it enters the catalog, or when diagnosing which hard rule a plugin manifest breaks. (A stale or drifted marketplace.json is building-the-catalog's territory.)
 ---
 # Validating plugins (the rule reference)
 

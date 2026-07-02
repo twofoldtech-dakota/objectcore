@@ -38,7 +38,14 @@ export class GitWorkspaceSource implements CatalogSource {
         // No manifest -> not a plugin (Stage 1 can auto-derive name from dir).
         continue;
       }
-      const manifest = JSON.parse(raw) as PluginManifest;
+      // A broken manifest fails fast (unlike a missing one), but names the file —
+      // a bare SyntaxError never says which of the plugins is at fault.
+      let manifest: PluginManifest;
+      try {
+        manifest = JSON.parse(raw) as PluginManifest;
+      } catch (e) {
+        throw new Error(`invalid JSON in ${manifestPath}: ${(e as Error).message}`);
+      }
       plugins.push({ manifest, dir, relDir: name });
     }
     return plugins;
@@ -71,6 +78,11 @@ export interface StoredPlugin {
 export interface CatalogStore {
   /** Current published version of every plugin on a channel (default "stable"). */
   listLatest(channel?: string): Promise<StoredPlugin[]>;
+  /** Published versions are immutable (Stage 2 doctrine): a `(name, version)` row is
+   *  first-write-wins. Re-publishing identical coordinates is idempotent, except
+   *  `provenance` may be added or updated; `provenance: undefined` means "preserve
+   *  any existing value" (there is no legitimate clear-provenance flow). A different
+   *  sha/ref/relDir/repoUrl/manifest for an existing version MUST throw. */
   upsertVersion(p: StoredPlugin): Promise<void>;
   setChannel(channel: string, name: string, version: string): Promise<void>;
 }
@@ -98,9 +110,22 @@ export class RegistryDbSource implements CatalogSource {
     }
     const now = Date.now();
     if (this.cache && now - this.cache.at < this.cacheTtlMs) return this.cache.rows;
-    const rows = await this.store.listLatest(this.channel);
-    this.cache = { at: now, rows };
-    return rows;
+    try {
+      const rows = await this.store.listLatest(this.channel);
+      this.cache = { at: now, rows };
+      return rows;
+    } catch (err) {
+      // Stale-if-error: the seam URL must ride out transient store blips, so a
+      // last-known-good snapshot beats a 500. /readyz still reports the true DB
+      // state via its own listLatest call, so health checks stay honest.
+      if (this.cache) {
+        console.error(
+          `RegistryDbSource: store read failed; serving last-known-good catalog (${(err as Error).message})`,
+        );
+        return this.cache.rows;
+      }
+      throw err;
+    }
   }
 
   async listPlugins(): Promise<WorkspacePlugin[]> {
@@ -110,9 +135,18 @@ export class RegistryDbSource implements CatalogSource {
   }
 
   /** The `shaPin` + `repoUrl` for `deriveCatalog`, built from the SAME rows that
-   *  `listPlugins` serves — so the served catalog is the immutable git-subdir form. */
+   *  `listPlugins` serves — so the served catalog is the immutable git-subdir form.
+   *  Fails closed on rows spanning more than one repoUrl: `deriveCatalog` pins
+   *  against a single repoUrl, so serving would mispin every other repo's plugins. */
   async pins(): Promise<{ shaPin: Record<string, string>; repoUrl?: string }> {
     const rows = await this.rows();
+    const urls = new Set(rows.map((r) => r.repoUrl));
+    if (urls.size > 1) {
+      throw new Error(
+        `catalog spans multiple repoUrls (${[...urls].join(", ")}) — deriveCatalog pins against ` +
+          "one repoUrl; refusing to serve mispinned entries (surfaces as 500s on /v1/marketplace.json).",
+      );
+    }
     return {
       shaPin: Object.fromEntries(rows.map((r) => [r.manifest.name, r.sha])),
       repoUrl: rows[0]?.repoUrl,

@@ -4,21 +4,22 @@
 // only when every one of its cases passes — that is the rule AGENTS.md states:
 // no plugin enters the catalog without passing its activation eval.
 
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { WorkspacePlugin } from "@objectcore/registry-core";
 import type { ActivationSpec, EvalResult, Judge, TriggerSurface } from "./types";
+import {
+  casesShapeProblem,
+  isSpecLoadError,
+  loadSpec,
+  specUnreadableResult,
+  type SpecLoadError,
+} from "./spec";
 
-/** Load `<plugin>/evals/activation.json` if present. */
+/** Load `<plugin>/evals/activation.json`. null means the file does not exist; a
+ *  present-but-broken file returns the SpecLoadError sentinel (fail closed). */
 export async function loadActivationSpec(
   plugin: WorkspacePlugin,
-): Promise<ActivationSpec | null> {
-  try {
-    const raw = await readFile(join(plugin.dir, "evals", "activation.json"), "utf8");
-    return JSON.parse(raw) as ActivationSpec;
-  } catch {
-    return null;
-  }
+): Promise<ActivationSpec | null | SpecLoadError> {
+  return loadSpec<ActivationSpec>(plugin, "activation.json", casesShapeProblem);
 }
 
 const snippet = (s: string): string => (s.length > 50 ? s.slice(0, 47) + "..." : s);
@@ -62,7 +63,9 @@ export async function runActivationEvals(
   const results: EvalResult[] = [];
   for (const plugin of plugins) {
     const spec = await loadActivationSpec(plugin);
-    if (spec) {
+    if (isSpecLoadError(spec)) {
+      results.push(specUnreadableResult("activation", plugin, spec));
+    } else if (spec) {
       results.push(...(await runPluginActivation(plugin, spec, candidates, judge)));
     }
   }

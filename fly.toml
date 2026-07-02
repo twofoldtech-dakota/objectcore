@@ -23,7 +23,9 @@ primary_region = "iad"
   PORT = "8080"
   # Self-service publish (POST /v1/plugins) is INERT until OBJECTCORE_OIDC_AUDIENCE is
   # set (as a secret). When armed it also reads OBJECTCORE_OIDC_ISSUER (default GitHub
-  # Actions) and OBJECTCORE_PUBLISH_REPOS (comma-separated owner/repo allowlist).
+  # Actions), OBJECTCORE_PUBLISH_REPOS (comma-separated owner/repo allowlist), and
+  # OBJECTCORE_PUBLISH_REFS (comma-separated allowed git refs; defaults to
+  # refs/heads/main — the release pipeline publishes only from main).
 
 [http_service]
   internal_port = 8080
