@@ -1,6 +1,6 @@
 {
   "title": "Inkwell.",
-  "kicker": "57 values · six themes · AAA throughout",
+  "kicker": "57 values · warm paper to ink · AAA throughout",
   "tagline": "Ink on warm paper, bronze only where it matters. A color system for agentic products that would rather be trusted than noticed — measured to WCAG AAA and calm about it.",
   "principles": [
     {
@@ -20,6 +20,32 @@
       "body": "Ink mode reassigns the same thirteen neutrals — nothing inverted, nothing invented after the fact. Both themes are first-class citizens."
     }
   ],
-  "rampNotes": "Five ramps, fifty-seven decisions. A dot marks a value carried verbatim from the source; every ramp is luminance-monotonic, end to end.",
-  "roleNotes": "Components speak in roles, never in hexes. Each role resolves per theme — ship the tokens and these decisions travel with them."
+  "rampNotes": {
+    "neutral": "warm gray, paper to ink — every step carried verbatim from the source",
+    "bronze": "the only interactive voice — 400–700 verbatim from the source",
+    "moss": "the word for “succeeded”",
+    "ochre": "the word for “needs attention”",
+    "clay": "the word for “failed”"
+  },
+  "roleNotes": {
+    "bg.base": "The page. Everything sits on this.",
+    "bg.surface": "Cards, panels, rails.",
+    "bg.raised": "Nested surfaces, code, hover fills.",
+    "border.subtle": "Hairlines and dividers.",
+    "border.strong": "Emphasized edges.",
+    "border.input": "Form-control boundary — measured ≥ 3:1 (WCAG 1.4.11).",
+    "text.emphasis": "Headlines, key numbers.",
+    "text.primary": "Working text.",
+    "text.secondary": "Body copy, long-form.",
+    "text.muted": "Timestamps, captions — still 7:1.",
+    "text.disabled": "Disabled controls only. WCAG-exempt.",
+    "accent.default": "Links, primary actions, selection.",
+    "accent.hover": "The pressed and hovered voice.",
+    "accent.subtle-bg": "Selected rows, quiet emphasis.",
+    "accent.on-accent": "Text on solid bronze.",
+    "accent.focus-ring": "The focus indicator — ≥ 3:1 against every canvas.",
+    "status.success-text": "Ran, finished, verified.",
+    "status.warning-text": "Needs a human.",
+    "status.danger-text": "Failed, and says so plainly."
+  }
 }

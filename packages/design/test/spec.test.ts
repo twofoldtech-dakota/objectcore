@@ -1,7 +1,6 @@
 import { test, expect } from "bun:test";
 import { renderSpecHtml, SpecHtmlSink, extractRamps, extractRoles, specProvenance, type SpecInput } from "../src/spec";
 import { proveContrast } from "../src/proof";
-import { scaffoldDesignSystem } from "../src/scaffold";
 import { deriveDesignSystem, type DesignSystemSource, type DesignSystemOutput } from "../src/derive";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -117,19 +116,55 @@ const wideInput: SpecInput = {
 };
 const wideHtml = renderSpecHtml(wideInput);
 
-/** The scaffold's NARROW legacy vocabulary (bg.canvas/subtle/surface …), 2 themes. */
-const narrow = scaffoldDesignSystem({
-  brief: { name: "narrowtest", adjectives: ["calm", "minimal"] },
-  colors: [{ name: "accent", hue: 264 }],
-});
-const narrowOut = deriveDesignSystem(narrow.source);
+/** A hand-built NARROW legacy-vocabulary system (bg.canvas/subtle/surface …), 2 themes —
+ *  the widened scaffold no longer emits this contract (clean break), so the un-migrated
+ *  shape is pinned by hand. */
+const NARROW: DesignSystemSource = {
+  sets: {
+    primitives: {
+      color: {
+        $type: "color",
+        neutral: {
+          // 12 steps so numeric (not lexical) step ordering keeps a real fixture.
+          light: colorGroup({
+            "1": "#ffffff", "2": "#fafafa", "3": "#f2f2f2", "4": "#e8e8e8",
+            "5": "#dedede", "6": "#d2d2d2", "7": "#c0c0c0", "8": "#a8a8a8",
+            "9": "#8a8a8a", "10": "#6a6a6a", "11": "#4a4a4a", "12": "#161616",
+          }),
+          dark: colorGroup({ "1": "#111013" }),
+        },
+      },
+    },
+    "semantic-light": roleSet({
+      "bg.canvas": "{color.neutral.light.1}", "bg.subtle": "#f4f4f2", "bg.surface": "#ececea",
+      "text.primary": "#16150f", "text.subtle": "#3f3e38",
+      "border.default": "#d9d9d6",
+      "accent.solid": "#7c2d12", "accent.text": "#7c2d12",
+    }),
+    "semantic-dark": roleSet({
+      "bg.canvas": "{color.neutral.dark.1}", "bg.subtle": "#1b1a1e", "bg.surface": "#262529",
+      "text.primary": "#f0efe9", "text.subtle": "#c9c8c2",
+      "border.default": "#3a393e",
+      "accent.solid": "#f0a284", "accent.text": "#f0a284",
+    }),
+  },
+  resolver: {
+    resolutionOrder: ["primitives", "theme"],
+    modifiers: [{ name: "theme", contexts: { light: ["semantic-light"], dark: ["semantic-dark"] } }],
+  },
+  themes: [
+    { name: "light", context: { theme: "light" } },
+    { name: "dark", context: { theme: "dark" } },
+  ],
+};
+const narrowOut = deriveDesignSystem(NARROW);
 const narrowProof = proveContrast(narrowOut, { level: "AA", includeLegacy: true });
 const narrowInput: SpecInput = {
   system: "narrowtest",
   output: narrowOut,
   proof: narrowProof,
-  provenance: specProvenance(narrow.source),
-  brief: narrow.evalSpec.brief,
+  provenance: specProvenance(NARROW),
+  brief: { name: "narrowtest", adjectives: ["calm", "minimal"] },
 };
 const narrowHtml = renderSpecHtml(narrowInput);
 
@@ -180,9 +215,9 @@ test("extractRamps groups color.* by family and sorts steps numerically (half-st
   expect(ramps.map((r) => r.family)).toEqual(["flame", "mist"]); // first appearance in path-sorted tokens
   expect(ramps[1]!.steps.map((s) => s.step)).toEqual(["50", "100", "150", "500", "850", "900", "950"]);
   expect(ramps[0]!.steps.find((s) => s.step === "800")!.source).toBe("poc verbatim");
-  // 12-step scaffold ramps sort 1..12 numerically, never lexically (1, 10, 11, 12, 2…).
-  const scaffolded = extractRamps(narrowOut.themes[0]!);
-  const neutral = scaffolded.find((r) => r.family === "neutral.light")!;
+  // 12-step ramps sort 1..12 numerically, never lexically (1, 10, 11, 12, 2…).
+  const narrowRamps = extractRamps(narrowOut.themes[0]!);
+  const neutral = narrowRamps.find((r) => r.family === "neutral.light")!;
   expect(neutral.steps.map((s) => s.step)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]);
 });
 
@@ -212,8 +247,8 @@ test("specProvenance maps each aliased role to its referenced primitive, per the
   expect(prov.day!["accent.default"]).toBe("color.flame.800");
   expect(prov.day!["border.subtle"]).toBeUndefined(); // raw hex — no reference, no provenance
   expect(prov.dusk!["bg.base"]).toBe("color.mist.900");
-  // Scaffolded narrow system: same mechanism, legacy vocabulary.
-  const narrowProv = specProvenance(narrow.source);
+  // Hand-built narrow system: same mechanism, legacy vocabulary.
+  const narrowProv = specProvenance(NARROW);
   expect(narrowProv.light!["bg.canvas"]).toBe("color.neutral.light.1");
   // No resolver → the single merged "default" theme.
   const flat = specProvenance({ sets: { base: roleSet({ "bg.canvas": "#ffffff" }) } });
