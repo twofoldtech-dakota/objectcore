@@ -74,7 +74,7 @@
       "name": "kb-writer",
       "source": "kb-writer",
       "description": "Surface the project knowledge base at session start and prompt capturing durable lessons at session end — the KB's automated read/write surface.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": {
         "name": "twofoldtech-dakota"
       },
@@ -91,7 +91,7 @@
       "name": "knowledge-base",
       "source": "knowledge-base",
       "description": "Capture and curate durable lessons, patterns, gotchas, and decisions in ObjectCore's factory knowledge base.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "twofoldtech-dakota"
       },
@@ -193,7 +193,7 @@
       "name": "reflection",
       "source": "reflection",
       "description": "The reflection loop: a PostToolUse hook that auto-invokes a self-reflection subagent on a red ObjectCore gate, diagnosing the failure and capturing durable lessons into the knowledge base.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": {
         "name": "twofoldtech-dakota"
       },

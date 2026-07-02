@@ -1,6 +1,6 @@
 {
   "name": "knowledge-base",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Capture and curate durable lessons, patterns, gotchas, and decisions in ObjectCore's factory knowledge base.",
   "author": {
     "name": "twofoldtech-dakota"

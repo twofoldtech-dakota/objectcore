@@ -1,6 +1,6 @@
 {
   "name": "reflection",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The reflection loop: a PostToolUse hook that auto-invokes a self-reflection subagent on a red ObjectCore gate, diagnosing the failure and capturing durable lessons into the knowledge base.",
   "author": {
     "name": "twofoldtech-dakota"

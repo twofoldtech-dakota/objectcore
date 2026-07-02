@@ -1,6 +1,6 @@
 {
   "name": "kb-writer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Surface the project knowledge base at session start and prompt capturing durable lessons at session end — the KB's automated read/write surface.",
   "author": {
     "name": "twofoldtech-dakota"
