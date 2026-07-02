@@ -1,5 +1,5 @@
 {
-  "//": "OPT-IN dogfood wiring for the factory's own agentic loop (plan 008 F2/F3/F4). The kb-writer and reflection plugins ship these hooks to consuming projects via the catalog, but sessions in THIS repo don't have the plugins installed — so the loop the docs describe never actually fires here. Rename this file to settings.json (or merge into settings.local.json) to close the loop: KB index surfaced at session start, reflection nudge on a red gate, lesson-capture prompt on stop. Hook cwd is the project root, so paths are repo-relative.",
+  "//": "The factory dogfoods its own agentic loop (plan 008 F2/F3/F4). The kb-writer and reflection plugins ship these same hooks to consuming projects via the catalog; sessions in THIS repo don't install the plugins, so this wires them directly: KB index surfaced at session start (and after /clear or compaction), reflection nudge when a gate run goes red, lesson-capture prompt on stop. All three self-gate and stay silent when they have nothing to add. Hook cwd is the project root, so paths are repo-relative.",
   "hooks": {
     "SessionStart": [
       {
