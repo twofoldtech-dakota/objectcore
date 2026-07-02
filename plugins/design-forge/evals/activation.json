@@ -31,6 +31,21 @@
       "note": "multi-brand theming axis"
     },
     {
+      "prompt": "I don't want to design tokens from scratch — is there a ready-made theme I can just start from?",
+      "expect": "choosing-a-seeded-theme",
+      "note": "quick-start from a curated preset instead of authoring"
+    },
+    {
+      "prompt": "Which seeded design preset fits a quiet, editorial, paper-like writing product?",
+      "expect": "choosing-a-seeded-theme",
+      "note": "picking which seeded preset matches a mood"
+    },
+    {
+      "prompt": "We already have a strict brand guide with exact hex colors and fonts — turn it into a DTCG token spec.",
+      "expect": "defining-design-tokens",
+      "note": "boundary — an exact brand guide is a custom grill, not a preset"
+    },
+    {
       "prompt": "What's the capital of France?",
       "expect": null,
       "note": "clear negative — no skill should fire"
@@ -39,6 +54,11 @@
       "prompt": "Help me design a normalized database schema for our users and orders tables.",
       "expect": null,
       "note": "confusability negative — shares 'design', wrong domain (data modeling)"
+    },
+    {
+      "prompt": "Help me pick a WordPress theme for my blog.",
+      "expect": null,
+      "note": "confusability negative — 'theme' as a CMS template, not design tokens"
     }
   ]
 }

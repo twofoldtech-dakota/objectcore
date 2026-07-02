@@ -1,6 +1,6 @@
 ---
 name: defining-design-tokens
-description: The grilling gate for AUTHORING a new design system or token set — turn a vague brand into a decided DTCG design-token spec before any scaffolding. Use at the start of /design, when brand direction (color, type, spacing, motion) is still fuzzy, or when deciding the token foundations and tiers.
+description: The grilling gate for AUTHORING a new design system or token set — turn a vague brand into a decided DTCG design-token spec before any scaffolding. Use at the start of /design, when brand direction (color, type, spacing, motion) is still fuzzy, or when deciding the token foundations and tiers. For a ready-made starting point instead of a custom grill, use choosing-a-seeded-theme.
 ---
 # Defining design tokens (the authoring gate)
 
