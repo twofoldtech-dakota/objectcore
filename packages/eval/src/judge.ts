@@ -57,10 +57,11 @@ const ROUTE_SCHEMA = {
   properties: {
     // Empty string means "no skill fires" — avoids null-type schema edge cases.
     skill: { type: "string", description: "Exact skill name that fires, or \"\" if none." },
+    // No minimum/maximum: the structured-outputs API rejects numeric range
+    // keywords on number types (400). The description states the range; the
+    // runner clamps to [0,1] regardless.
     confidence: {
       type: "number",
-      minimum: 0,
-      maximum: 1,
       description: "0..1 confidence in the decision.",
     },
     reason: { type: "string", description: "One sentence justifying the choice." },
