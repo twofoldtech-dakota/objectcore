@@ -24,6 +24,7 @@
     "kb:curate": "bun run scripts/kb-curate.ts",
     "kb:index": "bun run scripts/kb-index.ts",
     "kb:check": "bun run scripts/kb-check.ts",
+    "kb:verify": "bun run scripts/kb-verify.ts",
     "check": "bunx tsc && bun run check:catalog && bun run kb:check && bun run design:check && bun test && bun run eval",
     "clean:git": "bun run scripts/clean-git.ts",
     "registry:dev": "bun run packages/registry-server/src/dev.ts",
