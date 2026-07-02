@@ -12,6 +12,7 @@
     "forge:scaffold": "bun run scripts/forge-scaffold.ts",
     "forge:meta": "bun run scripts/forge-meta.ts",
     "design:scaffold": "bun run scripts/design-scaffold.ts",
+    "design:seed": "bun run scripts/design-seed.ts",
     "design:check": "bun run scripts/design-check.ts",
     "design:build": "bun run scripts/design-build.ts",
     "forge:improve": "bun run scripts/forge-improve.ts",
