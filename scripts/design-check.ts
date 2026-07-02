@@ -1,48 +1,35 @@
 // `bun run design:check` — read-only gate over any committed design systems under
 // `design/*/`. The design-token analogue of `check:catalog`: it loads each system
 // (a FileTokenSource over `*.tokens.json` + `resolver.json`), runs the DTCG schema
-// floor, derives every theme, and runs the deterministic contrast gate on the standard
-// semantic pairs that resolve. The judged on-brand layer runs only with an API key
-// (skipped otherwise — never silently passed), exactly like the activation eval. It is
-// a CLEAN NO-OP until an SSOT is committed (P6), so it is safe to wire into `bun run
+// floor, derives every theme, and runs the deterministic contrast gate on the
+// semantic role CONTRACT (roles.ts) at the level the system's `system.json` manifest
+// declares — the presence-gated legacy pairs ride along, so a narrow pre-014 system
+// gates exactly as before. `gate.coverage: "full"` additionally requires every
+// contract role. The judged on-brand layer runs only with an API key (skipped
+// otherwise — never silently passed), exactly like the activation eval. It is a
+// CLEAN NO-OP until an SSOT is committed (P6), so it is safe to wire into `bun run
 // check` now. Exits non-zero on any deterministic error.
 
 import { join, relative } from "node:path";
 import { readdirSync, statSync, existsSync } from "node:fs";
 import {
   FileTokenSource,
+  loadSystemManifest,
   deriveDesignSystem,
   validateTokens,
-  checkContrast,
+  contractPairs,
+  checkContractContrast,
+  checkContractCoverage,
   loadDesignEvalSpec,
   runDesignEval,
   summarizeSystem,
   AnthropicDesignJudge,
   hasApiKey,
-  type ContrastPair,
   type TokenIssue,
 } from "@objectcore/design";
 
 const root = join(import.meta.dir, "..");
 const designDir = join(root, "design");
-
-// The standard semantic pairs the deterministic gate checks when present. TEXT only:
-// text always needs contrast (WCAG 1.4.3/1.4.6). We deliberately do NOT gate subtle
-// borders/separators — WCAG 1.4.11's 3:1 non-text floor applies to *meaningful* UI
-// boundaries and focus indicators, NOT decorative separators (a step-6/7 hairline),
-// so requiring it there is a false failure. A system that wants a 3:1 focus ring should
-// add an explicit focus token + opt into a pair; the universal floor is text.
-// Text is gated on EVERY canvas-class bg the semantic set aliases (bg.canvas,
-// bg.subtle, bg.surface) — text that only holds on step 1 fails on a card.
-const STD_TEXT: Array<{ fgPath: string; level: "AA" | "AAA" }> = [
-  { fgPath: "text.primary", level: "AAA" },
-  { fgPath: "text.subtle", level: "AA" },
-  { fgPath: "accent.text", level: "AA" },
-];
-const STD_BGS = ["bg.canvas", "bg.subtle", "bg.surface"];
-const STD_PAIRS: Array<Omit<ContrastPair, "fg" | "bg"> & { fgPath: string; bgPath: string }> = STD_BGS.flatMap(
-  (bgPath) => STD_TEXT.map(({ fgPath, level }) => ({ label: `${fgPath} on ${bgPath}`, fgPath, bgPath, level })),
-);
 
 function listSystems(): string[] {
   if (!existsSync(designDir)) return [];
@@ -71,6 +58,7 @@ for (const dir of systems) {
   const name = relative(designDir, dir);
   console.log(`\n▸ ${name}`);
   const source = await new FileTokenSource(dir).load();
+  const manifest = await loadSystemManifest(dir); // absent → AA/presence; malformed → loud
 
   for (const [setName, set] of Object.entries(source.sets)) {
     report(validateTokens(set), `[${setName}] `);
@@ -79,18 +67,16 @@ for (const dir of systems) {
   const out = deriveDesignSystem(source);
   report(out.issues, "");
 
+  // The contract contrast gate (gate ≡ proof — the same math the proof table shows),
+  // at the manifest's declared level. Presence-gated: a pair fires only when both
+  // roles resolve, so a narrow system is gated on the vocabulary it speaks.
   let checkedPairs = 0;
   for (const theme of out.themes) {
-    const get = (p: string) => theme.tokens.find((t) => t.path === p)?.value;
-    const pairs: ContrastPair[] = [];
-    for (const s of STD_PAIRS) {
-      const fg = get(s.fgPath);
-      const bg = get(s.bgPath);
-      if (fg === undefined || bg === undefined) continue; // not a missing-token error; not all systems use the standard names
-      pairs.push({ label: `${theme.name}: ${s.label}`, fg, bg, level: s.level, nonText: s.nonText });
-    }
-    checkedPairs += pairs.length;
-    report(checkContrast(pairs), "");
+    checkedPairs += contractPairs(theme, manifest.gate.level, { includeLegacy: true }).length;
+  }
+  report(checkContractContrast(out, { level: manifest.gate.level, includeLegacy: true }), "");
+  if (manifest.gate.coverage === "full") {
+    for (const theme of out.themes) report(checkContractCoverage(theme), "");
   }
   note(`${out.themes.length} theme(s), ${checkedPairs} standard contrast pair(s) checked`);
 
