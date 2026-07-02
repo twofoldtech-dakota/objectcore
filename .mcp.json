@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "objectcore-kb": { "command": "bun", "args": ["packages/knowledge-mcp/src/main.ts"] }
+  }
+}
