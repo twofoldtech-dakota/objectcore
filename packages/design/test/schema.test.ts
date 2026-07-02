@@ -61,6 +61,21 @@ test("an unknown reserved ($-prefixed) property is rejected", () => {
   expect(issues.some((i) => i.message.includes("$foo"))).toBe(true);
 });
 
+test("$extensions is accepted on tokens and groups; unknown $-props stay rejected next to it", () => {
+  // $extensions is a RESERVED prop (vendor passthrough, plan 014) — never an error...
+  const ok = {
+    ramp: {
+      $type: "color",
+      $extensions: { "ai.objectcore.note": "group-level vendor data" },
+      "9": { $value: "#3355ff", $extensions: { "ai.objectcore.derived": { source: "poc" } } },
+    },
+  };
+  expect(errs(ok)).toEqual([]);
+  // ...and its presence must not loosen the reject-unknown floor for siblings.
+  const mixed = errs({ x: { $type: "color", $value: "#fff", $extensions: {}, $foo: 1 } });
+  expect(mixed.some((i) => i.message.includes("$foo"))).toBe(true);
+});
+
 test("a token with no determinable type errors (unless it's a pure alias)", () => {
   expect(errs({ x: { $value: 5 } }).some((i) => i.message.includes("determine"))).toBe(true);
   // a pure alias defers its type — no error here

@@ -27,7 +27,7 @@ const CSS_FUNCTION_SPACES = new Set(["oklch", "oklab", "lch", "lab", "hsl", "hwb
 
 /** A resolved color value → a CSS color string (functional/`color()` form, or a
  *  passthrough for an authored hex/CSS string). */
-function colorToCss(v: unknown): string {
+export function colorToCss(v: unknown): string {
   if (typeof v === "string") return v;
   if (isObj(v) && typeof v.colorSpace === "string" && Array.isArray(v.components)) {
     const comps = v.components.map((c) => (c === "none" ? "none" : String(c))).join(" ");
@@ -120,7 +120,11 @@ function gradientToCss(v: unknown): string {
 /** `color.accent.9` → `--color-accent-9`. */
 const cssVarName = (path: string): string => `--${path.replace(/\./g, "-")}`;
 
-function themeBlock(theme: DerivedTheme): string {
+/** One theme's tokens as CSS custom-property declaration lines (two-space indented,
+ *  newline-joined, no selector) — the body CssVarSink wraps in `:root` /
+ *  `[data-theme]`, exported so other renderers (the spec page) emit the SAME
+ *  declarations rather than a second serialization path. */
+export function themeDecls(theme: DerivedTheme): string {
   const lines: string[] = [];
   for (const token of theme.tokens) {
     for (const [suffix, value] of cssPairs(token)) {
@@ -139,7 +143,7 @@ export class CssVarSink implements TokenSink {
     const blocks: string[] = [];
     output.themes.forEach((theme, i) => {
       const selector = i === 0 ? ":root" : `[data-theme="${theme.name}"]`;
-      blocks.push(`${selector} {\n${themeBlock(theme)}\n}`);
+      blocks.push(`${selector} {\n${themeDecls(theme)}\n}`);
     });
     return [{ path: this.fileName, content: blocks.join("\n\n") + "\n" }];
   }

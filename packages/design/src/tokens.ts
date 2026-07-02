@@ -176,6 +176,10 @@ export interface ResolvedToken {
   /** Concrete value with all `{refs}` substituted. */
   value: unknown;
   description?: string;
+  /** The token's OWN `$extensions`, passed through verbatim — never inherited from
+   *  a group and never resolved through a reference (an alias keeps its own, not
+   *  its target's). Vendor data like provenance rides here (plan 014). */
+  extensions?: Record<string, unknown>;
 }
 
 // ── Guards / helpers (pure) ───────────────────────────────────────────────────
