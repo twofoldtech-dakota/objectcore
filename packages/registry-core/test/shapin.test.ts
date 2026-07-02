@@ -47,6 +47,26 @@ test("validateSchema rejects an unknown manifest field (typo)", () => {
   expect(issues.some((i) => i.message.includes("unknown manifest field `keyword`"))).toBe(true);
 });
 
+test("validateSchema rejects a keywords array with non-string members", () => {
+  const bad: WorkspacePlugin[] = [
+    { manifest: { name: "p", keywords: [1] } as never, dir: "/x", relDir: "p" },
+  ];
+  expect(validateSchema(bad).some((i) => i.message.includes("`keywords` must be an array of strings"))).toBe(true);
+});
+
+test("validateSchema rejects a non-semver version (it mints the release tag)", () => {
+  for (const version of ["v0.1.0", "1.0", 1 as never]) {
+    const bad: WorkspacePlugin[] = [
+      { manifest: { name: "p", version: version as string }, dir: "/x", relDir: "p" },
+    ];
+    expect(validateSchema(bad).some((i) => i.message.includes("MAJOR.MINOR.PATCH"))).toBe(true);
+  }
+  const good: WorkspacePlugin[] = [
+    { manifest: { name: "p", version: "0.1.0" }, dir: "/x", relDir: "p" },
+  ];
+  expect(validateSchema(good)).toEqual([]);
+});
+
 test("validateSchema rejects a malformed author and accepts a good one", () => {
   const bad: WorkspacePlugin[] = [
     { manifest: { name: "p", author: { url: "x" } } as never, dir: "/x", relDir: "p" },

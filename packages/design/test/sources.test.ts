@@ -46,6 +46,27 @@ test("FileTokenSource loads *.tokens.json sets + resolver.json, deriving themed 
   }
 });
 
+test("FileTokenSource labels a malformed *.tokens.json with its file path", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "design-src-"));
+  try {
+    await writeFile(join(dir, "primitives.tokens.json"), "{ trailing comma, }");
+    expect(new FileTokenSource(dir).load()).rejects.toThrow(/primitives\.tokens\.json/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("FileTokenSource labels a malformed resolver.json with its file path", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "design-src-"));
+  try {
+    await writeFile(join(dir, "primitives.tokens.json"), "{}");
+    await writeFile(join(dir, "resolver.json"), "not json");
+    expect(new FileTokenSource(dir).load()).rejects.toThrow(/resolver\.json/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("FileTokenSource returns empty sets for a missing directory", async () => {
   const source = await new FileTokenSource(join(tmpdir(), "does-not-exist-xyz")).load();
   expect(source.sets).toEqual({});

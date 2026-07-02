@@ -32,10 +32,17 @@ const designDir = join(root, "design");
 // boundaries and focus indicators, NOT decorative separators (a step-6/7 hairline),
 // so requiring it there is a false failure. A system that wants a 3:1 focus ring should
 // add an explicit focus token + opt into a pair; the universal floor is text.
-const STD_PAIRS: Array<Omit<ContrastPair, "fg" | "bg"> & { fgPath: string; bgPath: string }> = [
-  { label: "text.primary on bg.canvas", fgPath: "text.primary", bgPath: "bg.canvas", level: "AAA" },
-  { label: "text.subtle on bg.canvas", fgPath: "text.subtle", bgPath: "bg.canvas", level: "AA" },
+// Text is gated on EVERY canvas-class bg the semantic set aliases (bg.canvas,
+// bg.subtle, bg.surface) — text that only holds on step 1 fails on a card.
+const STD_TEXT: Array<{ fgPath: string; level: "AA" | "AAA" }> = [
+  { fgPath: "text.primary", level: "AAA" },
+  { fgPath: "text.subtle", level: "AA" },
+  { fgPath: "accent.text", level: "AA" },
 ];
+const STD_BGS = ["bg.canvas", "bg.subtle", "bg.surface"];
+const STD_PAIRS: Array<Omit<ContrastPair, "fg" | "bg"> & { fgPath: string; bgPath: string }> = STD_BGS.flatMap(
+  (bgPath) => STD_TEXT.map(({ fgPath, level }) => ({ label: `${fgPath} on ${bgPath}`, fgPath, bgPath, level })),
+);
 
 function listSystems(): string[] {
   if (!existsSync(designDir)) return [];

@@ -5,17 +5,18 @@
 // a publisher needs NO database credential, only `id-token: write`.
 //
 // Data is reconstructed from the workspace exactly like release:publish (raw manifest +
-// relDir + the release commit sha + repoUrl + an MCP-bundle scan), so the published
-// manifest is the source of truth (not the lossy catalog-entry round-trip). The server
-// re-validates via parsePublish and recomputes `ref` itself.
+// relDir + the commit each plugin's RELEASE TAG resolves to (never bare HEAD) + repoUrl +
+// an MCP-bundle scan), so the published manifest is the source of truth (not the lossy
+// catalog-entry round-trip). The server re-validates via parsePublish and recomputes
+// `ref` itself.
 //
 // Self-gates (green no-op, the registry:ingest posture): skips unless
 // OBJECTCORE_REGISTRY_URL is set AND an OIDC token can be obtained. Inert until armed.
 
 import { join } from "node:path";
-import type { PublishRequest } from "@objectcore/registry-core";
+import { releaseTag, type PublishRequest } from "@objectcore/registry-core";
 import { loadWorkspace } from "./_workspace";
-import { gitSha, repoUrl, hasMcpConfig } from "./_release";
+import { gitSha, repoUrl, hasMcpConfig, tagSha } from "./_release";
 
 const root = join(import.meta.dir, "..");
 const dryRun = process.argv.includes("--dry-run");
@@ -56,6 +57,19 @@ if (!url) skip("no `origin` remote — cannot build git-subdir pin coordinates")
 const versioned = plugins.filter((p) => p.manifest.version);
 if (!versioned.length) skip("no versioned plugins to publish");
 
+/** Pin sha for a plugin: the commit its release tag resolves to — never bare HEAD,
+ *  so re-publishing after unrelated pushes to main cannot drift a version's pin away
+ *  from its `{plugin}--v{semver}` ref. Fail closed when the tag is missing. */
+function pinSha(name: string, version: string): string {
+  const tag = releaseTag(name, version);
+  try {
+    return tagSha(root, tag);
+  } catch {
+    console.error(`✗ ${name}@${version}: release tag ${tag} not found — run release:publish (which creates the tags) first`);
+    process.exit(1);
+  }
+}
+
 // A provenance reference attached when the run is attested — satisfies the route's
 // provenance gate for MCP-bundling plugins (the server stores the reference; verifying
 // the attestation bundle is a follow-up).
@@ -74,7 +88,7 @@ async function buildRequest(p: (typeof versioned)[number]): Promise<PublishReque
     manifest: p.manifest,
     relDir: p.relDir,
     version: p.manifest.version as string,
-    sha,
+    sha: pinSha(p.manifest.name, p.manifest.version as string),
     repoUrl: url,
     bundlesMcp: await hasMcpConfig(p.dir),
     ...(provenance ? { provenance } : {}),
@@ -82,10 +96,10 @@ async function buildRequest(p: (typeof versioned)[number]): Promise<PublishReque
 }
 
 if (dryRun) {
-  console.log(`registry:publish (dry run) -> ${base}/v1/plugins [${versioned.length} plugin(s), sha ${sha.slice(0, 12)}]`);
+  console.log(`registry:publish (dry run) -> ${base}/v1/plugins [${versioned.length} plugin(s), release commit ${sha.slice(0, 12)}]`);
   for (const p of versioned) {
     const req = await buildRequest(p);
-    console.log(`  ${req.manifest.name}@${req.version}${req.bundlesMcp ? " (mcp)" : ""}`);
+    console.log(`  ${req.manifest.name}@${req.version} @ ${req.sha.slice(0, 12)}${req.bundlesMcp ? " (mcp)" : ""}`);
   }
   console.log("(dry run — no token minted, nothing posted)");
   process.exit(0);

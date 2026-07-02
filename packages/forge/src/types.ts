@@ -149,4 +149,8 @@ export interface ScaffoldResult {
   dir: string;
   /** Absolute paths of every file written, in write order. */
   written: string[];
+  /** Absolute paths of stale scaffolder-owned artifacts deleted by a `force`
+   *  re-scaffold (a renamed skill's old dir, a dropped `.mcp.json`, ...). Always
+   *  empty on a fresh scaffold. Callers should surface these so removal is loud. */
+  removed: string[];
 }

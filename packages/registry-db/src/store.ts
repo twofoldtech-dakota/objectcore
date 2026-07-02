@@ -5,6 +5,7 @@
 import { createClient, type Client } from "@libsql/client";
 import type { CatalogStore, StoredPlugin, PluginManifest } from "@objectcore/registry-core";
 import { SCHEMA_SQL } from "./schema";
+import { assertVersionImmutable } from "./immutable";
 
 export class LibSqlCatalogStore implements CatalogStore {
   constructor(private readonly client: Client) {}
@@ -44,21 +45,61 @@ export class LibSqlCatalogStore implements CatalogStore {
   }
 
   async upsertVersion(p: StoredPlugin): Promise<void> {
+    const pluginsUpsert = {
+      sql: `INSERT INTO plugins (name, rel_dir, updated_at)
+            VALUES (?, ?, datetime('now'))
+            ON CONFLICT(name) DO UPDATE SET rel_dir = excluded.rel_dir, updated_at = datetime('now')`,
+      args: [p.manifest.name, p.relDir],
+    };
+
+    // First-write-wins (see assertVersionImmutable): an existing (name, version)
+    // row is never rewritten — identical coordinates are idempotent and only
+    // provenance moves; COALESCE keeps an undefined incoming from wiping it.
+    const rs = await this.client.execute({
+      sql: `SELECT manifest, rel_dir, sha, ref, repo_url FROM plugin_versions
+            WHERE plugin_name = ? AND version = ?`,
+      args: [p.manifest.name, p.version],
+    });
+    if (rs.rows.length) {
+      const r = rs.rows[0]!;
+      assertVersionImmutable(
+        {
+          manifest: JSON.parse(String(r.manifest)) as PluginManifest,
+          relDir: String(r.rel_dir),
+          version: p.version,
+          sha: String(r.sha),
+          ref: String(r.ref),
+          repoUrl: String(r.repo_url),
+        },
+        p,
+      );
+      await this.client.batch(
+        [
+          pluginsUpsert,
+          {
+            sql: `UPDATE plugin_versions SET provenance = COALESCE(?, provenance)
+                  WHERE plugin_name = ? AND version = ?`,
+            args: [
+              p.provenance === undefined ? null : JSON.stringify(p.provenance),
+              p.manifest.name,
+              p.version,
+            ],
+          },
+        ],
+        "write",
+      );
+      return;
+    }
+
     await this.client.batch(
       [
+        pluginsUpsert,
         {
-          sql: `INSERT INTO plugins (name, rel_dir, updated_at)
-                VALUES (?, ?, datetime('now'))
-                ON CONFLICT(name) DO UPDATE SET rel_dir = excluded.rel_dir, updated_at = datetime('now')`,
-          args: [p.manifest.name, p.relDir],
-        },
-        {
+          // Plain INSERT (no conflict clause): a lost race with a concurrent
+          // publisher fails the primary key instead of clobbering the row.
           sql: `INSERT INTO plugin_versions
                   (plugin_name, version, manifest, rel_dir, sha, ref, repo_url, provenance)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(plugin_name, version) DO UPDATE SET
-                  manifest = excluded.manifest, rel_dir = excluded.rel_dir, sha = excluded.sha,
-                  ref = excluded.ref, repo_url = excluded.repo_url, provenance = excluded.provenance`,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             p.manifest.name,
             p.version,

@@ -34,18 +34,28 @@ export class FileTokenSource implements TokenSource {
       return { sets: {} };
     }
 
+    // Label parse failures with the file path — the gate error must point at WHICH
+    // file in WHICH system is broken, not surface a bare SyntaxError.
+    const parse = (raw: string, file: string): unknown => {
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        throw new Error(`${join(this.dir, file)}: ${(e as Error).message}`);
+      }
+    };
+
     const sets: Record<string, Record<string, unknown>> = {};
     for (const name of names.sort()) {
       if (!name.endsWith(SET_SUFFIX)) continue;
       const setName = name.slice(0, -SET_SUFFIX.length);
       const raw = await readFile(join(this.dir, name), "utf8");
-      sets[setName] = JSON.parse(raw) as Record<string, unknown>;
+      sets[setName] = parse(raw, name) as Record<string, unknown>;
     }
 
     let resolver: Resolver | undefined;
     let themes: ThemeSpec[] | undefined;
     if (names.includes("resolver.json")) {
-      const parsed = JSON.parse(await readFile(join(this.dir, "resolver.json"), "utf8")) as ResolverFile;
+      const parsed = parse(await readFile(join(this.dir, "resolver.json"), "utf8"), "resolver.json") as ResolverFile;
       resolver = { resolutionOrder: parsed.resolutionOrder, modifiers: parsed.modifiers };
       themes = parsed.themes;
     }

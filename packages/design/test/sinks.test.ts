@@ -62,6 +62,41 @@ test("CssVarSink expands a typography composite into sub-vars", () => {
   expect(css).toContain("--text-h1-line-height: 1.2;");
 });
 
+test("CssVarSink maps an object strokeStyle to the nearest CSS keyword — never an empty declaration or [object Object]", () => {
+  const strokes: DesignSystemOutput = {
+    issues: [],
+    themes: [
+      {
+        name: "default",
+        context: {},
+        tokens: [
+          {
+            path: "border.style.focus",
+            type: "strokeStyle",
+            value: { dashArray: [{ value: 4, unit: "px" }, { value: 2, unit: "px" }], lineCap: "round" },
+          },
+          { path: "border.style.plain", type: "strokeStyle", value: "solid" },
+          {
+            path: "border.focus",
+            type: "border",
+            value: {
+              width: { value: 1, unit: "px" },
+              style: { dashArray: [{ value: 4, unit: "px" }], lineCap: "butt" },
+              color: "#0000ff",
+            },
+          },
+        ],
+      },
+    ],
+  };
+  const css = new CssVarSink().emit(strokes)[0]!.content;
+  expect(css).toContain("--border-style-focus: dashed;"); // object form → keyword
+  expect(css).toContain("--border-style-plain: solid;"); // string form passes through
+  expect(css).toContain("--border-focus: 1px dashed #0000ff;"); // inside the border shorthand too
+  expect(css).not.toContain("[object Object]");
+  expect(css).not.toContain(": ;");
+});
+
 test("JsonSink emits one path→value file per theme", () => {
   const files = new JsonSink().emit(output);
   expect(files.map((f) => f.path)).toEqual(["light.tokens.json", "dark.tokens.json"]);

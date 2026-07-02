@@ -22,5 +22,12 @@ const input = JSON.parse(json) as KnowledgeEntryInput;
 
 const root = join(import.meta.dir, "..");
 const store = new FileKnowledgeStore(join(root, "knowledge"));
-const entry = await store.append(input);
-console.log(`✓ added knowledge entry "${entry.id}" (${entry.type}); INDEX.md regenerated.`);
+try {
+  const entry = await store.append(input);
+  console.log(`✓ added knowledge entry "${entry.id}" (${entry.type}); INDEX.md regenerated.`);
+} catch (e) {
+  // The store rejects frontmatter-breaking fields BEFORE writing — surface the
+  // reason cleanly so the caller (often the reflection loop) can fix the input.
+  console.error(`✗ kb:add failed: ${(e as Error).message}`);
+  process.exit(1);
+}

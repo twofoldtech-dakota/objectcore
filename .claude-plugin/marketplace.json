@@ -142,7 +142,7 @@
     {
       "name": "plugin-forge",
       "source": "plugin-forge",
-      "description": "ObjectCore meta-plugin: scaffolds new plugins and their catalog entries via a spec-driven pipeline. (Stage 1 skeleton.)",
+      "description": "ObjectCore meta-plugin: generates new plugins and their catalog entries via the spec-driven /forge pipeline — grill the idea, plan the PluginSpec, scaffold deterministically, then pass the validation + activation gate.",
       "version": "0.0.1",
       "author": {
         "name": "twofoldtech-dakota"

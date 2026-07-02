@@ -57,7 +57,12 @@ const ROUTE_SCHEMA = {
   properties: {
     // Empty string means "no skill fires" — avoids null-type schema edge cases.
     skill: { type: "string", description: "Exact skill name that fires, or \"\" if none." },
-    confidence: { type: "number", description: "0..1 confidence in the decision." },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description: "0..1 confidence in the decision.",
+    },
     reason: { type: "string", description: "One sentence justifying the choice." },
   },
   required: ["skill", "confidence", "reason"],
@@ -108,17 +113,29 @@ export class AnthropicJudge implements Judge {
 
     const text = res.content.find((b): b is Anthropic.TextBlock => b.type === "text");
     if (!text) {
-      return { skill: null, confidence: 0, reason: "judge returned no text block" };
+      // Fail CLOSED: a verdict-less response must not score as "no skill fires" —
+      // that would green every expect:null case on a malfunctioning judge. Throw
+      // (like the JSON.parse below on garbage) and let the caller turn it red.
+      throw new Error(`judge returned no text block (stop_reason=${res.stop_reason})`);
     }
     const parsed = JSON.parse(text.text) as {
       skill: string;
       confidence: number;
       reason: string;
     };
+    const skill = parsed.skill === "" ? null : parsed.skill;
+    // A hallucinated name outside the candidate pool is a legitimate routing
+    // FAILURE, not a crash: keep the name so the case fails against `expect`,
+    // but annotate the reason so the failure detail is diagnosable.
+    const known = skill === null || candidates.some((c) => c.name === skill);
     return {
-      skill: parsed.skill === "" ? null : parsed.skill,
-      confidence: parsed.confidence,
-      reason: parsed.reason,
+      skill,
+      // Clamp to the RouteDecision contract (0..1): score.ts's near-miss and
+      // confidence-margin math consume this value raw.
+      confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
+      reason: known
+        ? parsed.reason
+        : `${parsed.reason} [unknown skill "${skill}" — not a candidate]`,
     };
   }
 }

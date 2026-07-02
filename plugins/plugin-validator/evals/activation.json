@@ -11,6 +11,11 @@
       "note": "pre-catalog review"
     },
     {
+      "prompt": "Claude Code rejects my plugin — keywords is a string and the name has capital letters. Which manifest rules am I breaking?",
+      "expect": "validating-plugins",
+      "note": "boundary pin vs building-the-catalog: manifest hard rules are validator territory even when the catalog is involved"
+    },
+    {
       "prompt": "What's a good recipe for dinner tonight?",
       "expect": null,
       "note": "clear negative"

@@ -14,10 +14,19 @@ const store = new FileKnowledgeStore(kbDir);
 
 const errors: string[] = [];
 
-// 1) Parse every entry — list() throws on the first malformed file.
-const entries = await store.list();
+// 1) Parse every entry — a corrupt file is reported by name (the store labels
+// parse failures with the file path), not as a bare stack trace.
+let entries;
+try {
+  entries = await store.list();
+} catch (e) {
+  console.error(`[error] ${(e as Error).message}`);
+  console.error("\n✗ kb:check failed.");
+  process.exit(1);
+}
 
-// 2) Committed INDEX.md must byte-match a fresh render (modulo CRLF, like check:catalog).
+// 2) Committed INDEX.md must match a fresh render (CRLF-normalized — unlike
+// check:catalog, which is strict-byte and diagnoses CRLF drift explicitly).
 const expected = renderIndex(entries);
 let committed = "";
 try {

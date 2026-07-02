@@ -22,6 +22,12 @@ export interface SemVer {
   patch: number;
 }
 
+/** Strict MAJOR.MINOR.PATCH — the release engine's version floor, deliberately
+ *  narrower than the wire floor. Prerelease/build identifiers (`1.0.0-rc.1`,
+ *  `1.0.0+build`) are reserved for the OIDC/channel publish path (registry-core's
+ *  permissive SEMVER accepts them over POST /v1/plugins); the bump engine refuses
+ *  them rather than guessing bump semantics. A workspace plugin that should be
+ *  bumpable must carry a plain X.Y.Z version. */
 export function parseVersion(v: string): SemVer {
   const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(v.trim());
   if (!m) throw new Error(`invalid semver "${v}" (expected MAJOR.MINOR.PATCH)`);

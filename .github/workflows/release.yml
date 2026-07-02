@@ -33,14 +33,15 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
 
       - name: Install (frozen lockfile)
         run: bun install --frozen-lockfile
 
-      # Gate before any release action — never release an un-validated catalog.
-      - name: Validate catalog
-        run: bun run check:catalog
+      # Gate before any release action — never release an un-validated catalog,
+      # a drifted knowledge INDEX, or a failing design-token set.
+      - name: Validate catalog + KB + design
+        run: bun run check:catalog && bun run kb:check && bun run design:check
 
       - name: Contract tests
         run: bun test
@@ -63,10 +64,27 @@ jobs:
         if: steps.detect.outputs.count != '0'
         run: bun run release:version
 
+      # Run the FULL gate on the versioned tree inside this job: a PR created with the
+      # default GITHUB_TOKEN never triggers ci.yml (a documented GitHub limitation), so
+      # without this step the version commit would merge ungated. This catches
+      # expectEntry.version lockstep drift and derivation bugs before the PR opens.
+      # (Without an ANTHROPIC_API_KEY the judged evals report as skipped — CI-safe.)
+      - name: Post-version gate (bun run check)
+        if: steps.detect.outputs.count != '0'
+        run: bun run check
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      # RELEASE_PAT (a fine-grained PAT or GitHub App token with contents +
+      # pull-requests write) makes ci.yml actually run on the Version PR — refs created
+      # by the default GITHUB_TOKEN fire no workflows. Inert until the secret is set
+      # (the `|| github.token` fallback matches the FLY_API_TOKEN arming pattern); the
+      # Post-version gate above keeps the PR gated either way.
       - name: Open/update Version PR
         if: steps.detect.outputs.count != '0'
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.RELEASE_PAT || github.token }}
           branch: changeset-release/main
           title: "Release: version plugins"
           commit-message: "chore: version plugins (consume changesets)"
@@ -83,6 +101,16 @@ jobs:
             attests the pinned catalog with build provenance.
 
       # --- No changesets: tag + SHA-pin + attest ---
+      # Eval-gate the publish leg too: ci.yml runs on the same push but in parallel —
+      # it never blocks this job. Offline (keyless) this still runs the
+      # output/coverage/readiness layers, which catch expectEntry.version lockstep
+      # drift before anything is tagged, pinned, or attested.
+      - name: Pre-publish eval gate
+        if: steps.detect.outputs.count == '0'
+        run: bun run eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
       - name: Publish (tag + SHA-pin)
         if: steps.detect.outputs.count == '0'
         id: publish
@@ -92,9 +120,11 @@ jobs:
           # gate (MCP-bundling plugins must be attested) lets the publish proceed.
           OBJECTCORE_ATTESTED: "1"
 
+      # Push ONLY the tags this run created (release:publish hands them over via
+      # GITHUB_OUTPUT) — `--tags` would also push any stray local tag.
       - name: Push new tags
         if: steps.detect.outputs.count == '0' && steps.publish.outputs.tag_count != '0'
-        run: git push origin --tags
+        run: git push origin ${{ steps.publish.outputs.tags }}
 
       - name: Attest pinned catalog (build provenance)
         if: steps.detect.outputs.count == '0' && hashFiles('dist/marketplace.pinned.json') != ''

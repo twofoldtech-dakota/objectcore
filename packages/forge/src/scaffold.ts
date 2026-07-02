@@ -2,10 +2,12 @@
 // rules at generation time (kebab-case names, components at the plugin ROOT, a
 // string `repository`, an array `keywords`) and enforces the factory rule that a
 // skill must ship an activation eval. It never overwrites an existing plugin dir
-// without `force`. After scaffolding, the catalog is re-derived and the gate run
-// by scripts/forge-scaffold.ts — this module only emits.
+// without `force`; with `force`, the spec is the FULL definition of the plugin,
+// so stale scaffolder-owned artifacts of the previous scaffold are removed first.
+// After scaffolding, the catalog is re-derived and the gate run by
+// scripts/forge-scaffold.ts — this module only emits.
 
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type {
   AgentSpec,
@@ -21,6 +23,31 @@ import type {
 // Canonical rule lives in registry-core/validate.ts; mirrored here for a fast
 // pre-write guard so we never emit a plugin the catalog would later reject.
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** True when a value cannot ride as a plain single-line YAML scalar: empty, edge
+ *  whitespace, a leading YAML indicator char, a `: ` (which reads as a nested
+ *  mapping), a trailing `:`, or an inline-comment ` #`. */
+function fmNeedsQuoting(v: string): boolean {
+  if (v === "" || v !== v.trim()) return true;
+  if (/^[-?:,[\]{}#&*!|>'"%@`]/.test(v)) return true;
+  if (/:\s/.test(v) || v.endsWith(":")) return true;
+  if (/\s#/.test(v)) return true;
+  return false;
+}
+
+/** Serialize one frontmatter value. Newlines are rejected — an embedded newline
+ *  would inject sibling frontmatter keys (`description: "x\ntools: Bash"` smuggles
+ *  a `tools` key past every guard), the trigger-surface analogue of SQL injection.
+ *  Values a plain scalar can't carry are emitted double-quoted with JSON escaping —
+ *  valid YAML, and readable by the gate's lenient parseFrontmatter. Called from the
+ *  pre-write validators (so a bad spec fails before any write) AND from the doc
+ *  builders (so nothing unvalidated can reach the emitted frontmatter). */
+function fmValue(ctx: string, v: string): string {
+  if (/[\r\n]/.test(v)) {
+    throw new Error(`${ctx} must be single-line — it is emitted as YAML frontmatter`);
+  }
+  return fmNeedsQuoting(v) ? JSON.stringify(v) : v;
+}
 
 // The five hook action types (code.claude.com/docs/en/hooks). Used to reject a
 // malformed hooks spec before writing.
@@ -73,7 +100,10 @@ function validateHooks(hooks: HooksSpec): void {
 const FORBIDDEN_AGENT_FIELDS = ["hooks", "mcpServers", "permissionMode"];
 
 /** Pre-write guard for subagents: kebab name, a description, the one legal
- *  isolation value, and NONE of the forbidden fields. Throws before any write. */
+ *  isolation value, and NONE of the forbidden fields. Every frontmatter-emitted
+ *  string must also be a single-line scalar — a newline in any of them would
+ *  inject sibling keys (e.g. a smuggled `permissionMode`) past the forbidden-field
+ *  guard. Throws before any write. */
 function validateAgents(agents: AgentSpec[]): void {
   for (const a of agents) {
     if (!KEBAB.test(a.name)) throw new Error(`agent name "${a.name}" must be kebab-case`);
@@ -86,6 +116,33 @@ function validateAgents(agents: AgentSpec[]): void {
         throw new Error(
           `agent "${a.name}": \`${f}\` is not allowed in a plugin-shipped agent (security)`,
         );
+      }
+    }
+    fmValue(`agent "${a.name}": description`, a.description);
+    if (a.model !== undefined) fmValue(`agent "${a.name}": model`, a.model);
+    if (a.effort !== undefined) fmValue(`agent "${a.name}": effort`, a.effort);
+    if (a.memory !== undefined) fmValue(`agent "${a.name}": memory`, a.memory);
+    // Non-string fields are interpolated into frontmatter too — a wrong-typed JSON
+    // value (e.g. maxTurns: "5\nfoo") would otherwise ride the same injection path.
+    if (a.maxTurns !== undefined && typeof a.maxTurns !== "number") {
+      throw new Error(`agent "${a.name}": \`maxTurns\` must be a number`);
+    }
+    if (a.background !== undefined && typeof a.background !== "boolean") {
+      throw new Error(`agent "${a.name}": \`background\` must be a boolean`);
+    }
+    const lists = [
+      ["tools", a.tools],
+      ["disallowedTools", a.disallowedTools],
+      ["skills", a.skills],
+    ] as const;
+    for (const [field, list] of lists) {
+      for (const item of list ?? []) {
+        fmValue(`agent "${a.name}": ${field} entry`, item);
+        if (item.includes(",")) {
+          throw new Error(
+            `agent "${a.name}": ${field} entry "${item}" must not contain a comma (lists serialize comma-separated)`,
+          );
+        }
       }
     }
   }
@@ -124,12 +181,15 @@ function validateMcp(mcp: McpSpec): void {
   }
 }
 
-/** Pre-write guard for output styles: kebab-case name (the filename stem). Throws
- *  before any write. */
+/** Pre-write guard for output styles: kebab-case name (the filename stem) and a
+ *  single-line description (frontmatter). Throws before any write. */
 function validateOutputStyles(styles: OutputStyleSpec[]): void {
   for (const s of styles) {
     if (!KEBAB.test(s.name)) {
       throw new Error(`output style name "${s.name}" must be kebab-case`);
+    }
+    if (s.description !== undefined) {
+      fmValue(`output style "${s.name}": description`, s.description);
     }
   }
 }
@@ -177,6 +237,54 @@ async function emit(written: string[], path: string, content: string): Promise<v
   written.push(path);
 }
 
+/** With `force`, a re-scaffold must not leave artifacts of the PREVIOUS spec
+ *  behind: a renamed skill's old dir fails coverage with a misleading "no positive
+ *  activation case", and a dropped `mcp` leaves a stale `.mcp.json` that trips the
+ *  publish-time provenance gate. Deletes ONLY scaffolder-owned paths — never
+ *  README/CHANGELOG, hand-authored hook scripts, or reference material inside kept
+ *  skill dirs (things the spec cannot express). */
+async function removeStaleArtifacts(
+  dir: string,
+  spec: PluginSpec,
+  removed: string[],
+): Promise<void> {
+  const drop = async (p: string, recursive = false): Promise<void> => {
+    if (!(await exists(p))) return;
+    await rm(p, { recursive, force: true });
+    removed.push(p);
+  };
+  // Skill dirs: only entries that ARE scaffolded skills (they carry a SKILL.md)
+  // are ours to drop; anything else under skills/ is hand-placed and kept.
+  const keepSkills = new Set((spec.skills ?? []).map((s) => s.name));
+  const skillsDir = join(dir, "skills");
+  if (await exists(skillsDir)) {
+    for (const entry of (await readdir(skillsDir)).sort()) {
+      if (keepSkills.has(entry)) continue;
+      if (await exists(join(skillsDir, entry, "SKILL.md"))) {
+        await drop(join(skillsDir, entry), true);
+      }
+    }
+  }
+  // One-file-per-component dirs: drop `<name>.md` files the new spec no longer declares.
+  const dropStaleMd = async (sub: string, keep: Set<string>): Promise<void> => {
+    const d = join(dir, sub);
+    if (!(await exists(d))) return;
+    for (const entry of (await readdir(d)).sort()) {
+      if (!entry.endsWith(".md")) continue;
+      if (!keep.has(entry.slice(0, -".md".length))) await drop(join(d, entry));
+    }
+  };
+  await dropStaleMd("commands", new Set((spec.commands ?? []).map((c) => c.name)));
+  await dropStaleMd("agents", new Set((spec.agents ?? []).map((a) => a.name)));
+  await dropStaleMd("output-styles", new Set((spec.outputStyles ?? []).map((s) => s.name)));
+  // Singleton artifacts: gone from the spec means gone from disk.
+  if (!(spec.hooks && Object.keys(spec.hooks).length)) await drop(join(dir, "hooks", "hooks.json"));
+  if (!(spec.mcp && Object.keys(spec.mcp).length)) await drop(join(dir, ".mcp.json"));
+  if (!(spec.settings && Object.keys(spec.settings).length)) await drop(join(dir, "settings.json"));
+  if (!spec.activation?.length) await drop(join(dir, "evals", "activation.json"));
+  if (!spec.delegation?.length) await drop(join(dir, "evals", "delegation.json"));
+}
+
 function titleCase(name: string): string {
   return name.replace(/(^|-)([a-z0-9])/g, (_, sep, ch) => (sep ? " " : "") + ch.toUpperCase()).trim();
 }
@@ -204,11 +312,14 @@ ${c.description}
 }
 
 function skillDoc(s: ComponentSpec): string {
-  return `---\nname: ${s.name}\ndescription: ${s.description}\n---\n${s.body ?? defaultSkillBody(s)}`;
+  const name = fmValue(`skill "${s.name}": name`, s.name);
+  const description = fmValue(`skill "${s.name}": description`, s.description);
+  return `---\nname: ${name}\ndescription: ${description}\n---\n${s.body ?? defaultSkillBody(s)}`;
 }
 
 function commandDoc(c: ComponentSpec): string {
-  return `---\ndescription: ${c.description}\n---\n${c.body ?? defaultCommandBody(c)}`;
+  const description = fmValue(`command "${c.name}": description`, c.description);
+  return `---\ndescription: ${description}\n---\n${c.body ?? defaultCommandBody(c)}`;
 }
 
 function defaultAgentBody(a: AgentSpec): string {
@@ -231,8 +342,10 @@ what to emphasize or omit).
 /** Serialize an output style to `output-styles/<name>.md`. Frontmatter uses the
  *  hyphenated Claude Code keys; unset booleans are omitted. */
 function outputStyleDoc(s: OutputStyleSpec): string {
-  const fm: string[] = [`name: ${s.name}`];
-  if (s.description) fm.push(`description: ${s.description}`);
+  const fm: string[] = [`name: ${fmValue(`output style "${s.name}": name`, s.name)}`];
+  if (s.description) {
+    fm.push(`description: ${fmValue(`output style "${s.name}": description`, s.description)}`);
+  }
   if (s.keepCodingInstructions) fm.push(`keep-coding-instructions: true`);
   if (s.forceForPlugin) fm.push(`force-for-plugin: true`);
   return `---\n${fm.join("\n")}\n---\n${s.body ?? defaultOutputStyleBody(s)}`;
@@ -241,14 +354,20 @@ function outputStyleDoc(s: OutputStyleSpec): string {
 /** Serialize a subagent to `agents/<name>.md`. Tool/skill lists are comma-separated
  *  strings (the YAML-array form has a known spawn bug). */
 function agentDoc(a: AgentSpec): string {
-  const fm: string[] = [`name: ${a.name}`, `description: ${a.description}`];
-  if (a.model) fm.push(`model: ${a.model}`);
-  if (a.effort) fm.push(`effort: ${a.effort}`);
+  const ctx = (field: string) => `agent "${a.name}": ${field}`;
+  const fm: string[] = [
+    `name: ${fmValue(ctx("name"), a.name)}`,
+    `description: ${fmValue(ctx("description"), a.description)}`,
+  ];
+  if (a.model) fm.push(`model: ${fmValue(ctx("model"), a.model)}`);
+  if (a.effort) fm.push(`effort: ${fmValue(ctx("effort"), a.effort)}`);
   if (a.maxTurns !== undefined) fm.push(`maxTurns: ${a.maxTurns}`);
-  if (a.tools?.length) fm.push(`tools: ${a.tools.join(", ")}`);
-  if (a.disallowedTools?.length) fm.push(`disallowedTools: ${a.disallowedTools.join(", ")}`);
-  if (a.skills?.length) fm.push(`skills: ${a.skills.join(", ")}`);
-  if (a.memory) fm.push(`memory: ${a.memory}`);
+  if (a.tools?.length) fm.push(`tools: ${fmValue(ctx("tools"), a.tools.join(", "))}`);
+  if (a.disallowedTools?.length) {
+    fm.push(`disallowedTools: ${fmValue(ctx("disallowedTools"), a.disallowedTools.join(", "))}`);
+  }
+  if (a.skills?.length) fm.push(`skills: ${fmValue(ctx("skills"), a.skills.join(", "))}`);
+  if (a.memory) fm.push(`memory: ${fmValue(ctx("memory"), a.memory)}`);
   if (a.background !== undefined) fm.push(`background: ${a.background}`);
   if (a.isolation) fm.push(`isolation: ${a.isolation}`);
   return `---\n${fm.join("\n")}\n---\n${a.body ?? defaultAgentBody(a)}`;
@@ -271,6 +390,29 @@ export async function scaffoldPlugin(
   if (spec.repository !== undefined && typeof spec.repository !== "string") {
     throw new Error("`repository` must be a string");
   }
+  // Cheap pre-write mirrors of registry-core's schema checks (hard invariant #4).
+  // Specs arrive as parsed JSON, so nothing upstream has type-checked them —
+  // failing here beats emitting a plugin dir that validateSchema then rejects,
+  // leaving a broken half-scaffold that needs --force to retry.
+  if (
+    spec.keywords !== undefined &&
+    (!Array.isArray(spec.keywords) || spec.keywords.some((k) => typeof k !== "string"))
+  ) {
+    throw new Error("`keywords` must be an array of strings");
+  }
+  if (spec.version !== undefined && typeof spec.version !== "string") {
+    throw new Error("`version` must be a string");
+  }
+  if (
+    spec.author !== undefined &&
+    (typeof spec.author !== "object" ||
+      spec.author === null ||
+      Array.isArray(spec.author) ||
+      typeof spec.author.name !== "string" ||
+      !spec.author.name.trim())
+  ) {
+    throw new Error("`author` must be an object with a non-empty string `name`");
+  }
   const hasHooks = !!(spec.hooks && Object.keys(spec.hooks).length);
   const hasMcp = !!(spec.mcp && Object.keys(spec.mcp).length);
   // Settings is an adjunct (its `agent` references another component), not a
@@ -286,6 +428,7 @@ export async function scaffoldPlugin(
   }
   for (const c of [...skills, ...commands]) {
     if (!KEBAB.test(c.name)) throw new Error(`component name "${c.name}" must be kebab-case`);
+    fmValue(`component "${c.name}": description`, c.description);
   }
   if (spec.hooks) validateHooks(spec.hooks);
   if (agents.length) validateAgents(agents);
@@ -301,17 +444,28 @@ export async function scaffoldPlugin(
       "plugin has skills but no activation cases — every skill must ship an activation eval",
     );
   }
-  // Cross-check activation cases against the declared skills BEFORE writing, so a
+  // Cross-check eval cases against the declared surfaces BEFORE writing, so a
   // typo'd spec fails cleanly instead of leaving a half-scaffolded dir for --force.
-  if (skills.length > 0) {
-    const skillNames = new Set(skills.map((s) => s.name));
-    for (const c of spec.activation ?? []) {
-      if (c.expect !== null && !skillNames.has(c.expect)) {
-        throw new Error(
-          `activation case expects "${c.expect}" but no such skill is declared`,
-        );
-      }
+  // Run UNCONDITIONALLY (not just when skills/agents exist): an orphan case in a
+  // component-less spec would otherwise be written verbatim and surface later as a
+  // confusing routing miss at eval time, far from the real cause.
+  const skillNames = new Set(skills.map((s) => s.name));
+  for (const c of spec.activation ?? []) {
+    if (c.expect !== null && !skillNames.has(c.expect)) {
+      throw new Error(
+        `activation case expects "${c.expect}" but no such skill is declared`,
+      );
     }
+  }
+  const agentNames = new Set(agents.map((a) => a.name));
+  for (const c of spec.delegation ?? []) {
+    if (c.expect !== null && !agentNames.has(c.expect)) {
+      throw new Error(
+        `delegation case expects "${c.expect}" but no such agent is declared`,
+      );
+    }
+  }
+  if (skills.length > 0) {
     for (const s of skills) {
       const hasPositive = (spec.activation ?? []).some((c) => c.expect === s.name);
       if (!hasPositive) {
@@ -330,14 +484,6 @@ export async function scaffoldPlugin(
         "plugin has agents but no delegation cases — every agent must ship a delegation eval",
       );
     }
-    const agentNames = new Set(agents.map((a) => a.name));
-    for (const c of spec.delegation) {
-      if (c.expect !== null && !agentNames.has(c.expect)) {
-        throw new Error(
-          `delegation case expects "${c.expect}" but no such agent is declared`,
-        );
-      }
-    }
     for (const a of agents) {
       const hasPositive = spec.delegation.some((c) => c.expect === a.name);
       if (!hasPositive) {
@@ -349,8 +495,15 @@ export async function scaffoldPlugin(
   }
 
   const dir = join(pluginsDir, spec.name);
-  if (!opts.force && (await exists(dir))) {
-    throw new Error(`${dir} already exists — pass { force: true } to overwrite`);
+  const removed: string[] = [];
+  if (await exists(dir)) {
+    if (!opts.force) {
+      throw new Error(`${dir} already exists — pass { force: true } to overwrite`);
+    }
+    // A force re-scaffold treats the spec as the full definition of the plugin:
+    // scaffolder-owned artifacts the new spec no longer declares are removed
+    // (renamed/dropped components must not persist), everything else survives.
+    await removeStaleArtifacts(dir, spec, removed);
   }
 
   const written: string[] = [];
@@ -414,5 +567,5 @@ export async function scaffoldPlugin(
   const expectEntry = spec.expectEntry ?? { version: spec.version ?? "0.0.1" };
   await emit(written, join(dir, "evals", "output.json"), json({ expectEntry }));
 
-  return { dir, written };
+  return { dir, written, removed };
 }

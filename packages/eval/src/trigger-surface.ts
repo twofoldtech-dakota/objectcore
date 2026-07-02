@@ -11,19 +11,41 @@ import { join } from "node:path";
 import type { WorkspacePlugin } from "@objectcore/registry-core";
 import type { TriggerSurface } from "./types";
 
-/** Minimal frontmatter reader: the `--- ... ---` block of simple `key: value` lines.
- *  Skills/commands use single-line name/description, so we split on the first `: `
- *  only and keep the remainder verbatim (descriptions routinely contain colons). */
+/** Minimal frontmatter reader: the `--- ... ---` block of `key: value` lines.
+ *  Splits on the first `:` only and keeps the remainder verbatim (descriptions
+ *  routinely contain colons). YAML block scalars (`|`, `|-`, `>`, `>-`) are folded:
+ *  their indented continuation lines join into the value (space-joined for folded
+ *  `>`, newline-joined for literal `|`). Descriptions ARE the trigger surface, so
+ *  a legal multi-line description must parse to its real text — not the literal
+ *  ">-" with its continuation lines masquerading as keys, which would silently
+ *  hand the judge a garbage surface. Indented lines are never keys. */
 export function parseFrontmatter(raw: string): Record<string, string> {
   const m = /^---\s*\n([\s\S]*?)\n---/.exec(raw);
   if (!m) return {};
   const out: Record<string, string> = {};
-  for (const line of m[1]!.split("\n")) {
-    const i = line.indexOf(":");
-    if (i === -1) continue;
-    const key = line.slice(0, i).trim();
+  const lines = m[1]!.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (/^\s/.test(line)) continue; // continuation line — a value's body, never a key
+    const ci = line.indexOf(":");
+    if (ci === -1) continue;
+    const key = line.slice(0, ci).trim();
     if (!key) continue;
-    out[key] = line.slice(i + 1).trim();
+    const value = line.slice(ci + 1).trim();
+    const block = /^([|>])-?$/.exec(value);
+    if (!block) {
+      out[key] = value;
+      continue;
+    }
+    // Block scalar: consume the following indented (or blank) lines as the body.
+    const body: string[] = [];
+    while (i + 1 < lines.length && (lines[i + 1]!.trim() === "" || /^\s/.test(lines[i + 1]!))) {
+      body.push(lines[++i]!.trim());
+    }
+    while (body.length && body[body.length - 1] === "") body.pop();
+    // Our values carry no trailing newline, so the `-` chomp variants need no
+    // extra handling; interior blank lines collapse under the folded join.
+    out[key] = block[1] === "|" ? body.join("\n") : body.filter(Boolean).join(" ");
   }
   return out;
 }

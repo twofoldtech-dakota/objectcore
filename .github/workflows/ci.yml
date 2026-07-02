@@ -11,27 +11,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The Bun runtime is pinned (.bun-version) like everything else we ship — a bad
+      # Bun release becomes a one-file upgrade PR that runs the full gate, not a
+      # simultaneous break of CI, releases, and deploys.
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
 
       - name: Install (frozen lockfile)
         run: bun install --frozen-lockfile
 
-      - name: Typecheck
-        run: bunx tsc
-
-      # The catalog gate: every plugin valid + marketplace.json in sync (not hand-edited).
-      - name: Validate catalog
-        run: bun run check:catalog
-
-      - name: Contract tests
-        run: bun test
-
-      # Output evals always run. Activation evals (the trigger-surface gate) run only
-      # when an ANTHROPIC_API_KEY secret is configured; otherwise they are reported as
-      # skipped and the job stays green. Add the secret to enforce the activation gate.
-      - name: Eval gate
-        run: bun run eval
+      # The gate is a SINGLE command so its composition stays single-sourced in
+      # package.json's `check` script (tsc + check:catalog + kb:check + design:check +
+      # test + eval) and can never drift from what contributors run locally.
+      # Output/coverage/readiness evals always run. Activation/delegation evals (the
+      # trigger-surface gate) run only when an ANTHROPIC_API_KEY secret is configured;
+      # otherwise they are reported as skipped and the job stays green. Add the secret
+      # to enforce the activation half of the gate.
+      - name: The gate (bun run check)
+        run: bun run check
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

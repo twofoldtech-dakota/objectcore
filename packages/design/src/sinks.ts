@@ -45,6 +45,12 @@ const dimToCss = (v: unknown): string =>
 const durToCss = (v: unknown): string =>
   isObj(v) && typeof v.value === "number" ? `${v.value}${v.unit}` : String(v);
 
+/** DTCG strokeStyle → CSS. The object form ({ dashArray, lineCap }) has no CSS
+ *  border-style equivalent, so it maps to the nearest keyword, `dashed` — never an
+ *  empty declaration or "[object Object]". */
+const strokeToCss = (v: unknown): string =>
+  typeof v === "string" ? v : isObj(v) && Array.isArray(v.dashArray) ? "dashed" : String(v);
+
 const familyToCss = (v: unknown): string => {
   const quote = (f: string) => (/\s/.test(f) ? `"${f}"` : f);
   if (Array.isArray(v)) return v.map((f) => quote(String(f))).join(", ");
@@ -71,9 +77,9 @@ function cssPairs(token: ResolvedToken): Array<[string, string]> {
     case "cubicBezier":
       return Array.isArray(v) ? [["", `cubic-bezier(${v.join(", ")})`]] : [["", String(v)]];
     case "strokeStyle":
-      return [["", typeof v === "string" ? v : ""]];
+      return [["", strokeToCss(v)]];
     case "border":
-      return isObj(v) ? [["", `${dimToCss(v.width)} ${String(v.style)} ${colorToCss(v.color)}`]] : [["", String(v)]];
+      return isObj(v) ? [["", `${dimToCss(v.width)} ${strokeToCss(v.style)} ${colorToCss(v.color)}`]] : [["", String(v)]];
     case "transition":
       return isObj(v)
         ? [["", `${durToCss(v.duration)} cubic-bezier(${Array.isArray(v.timingFunction) ? v.timingFunction.join(", ") : v.timingFunction}) ${durToCss(v.delay)}`]]

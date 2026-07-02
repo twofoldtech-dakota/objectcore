@@ -30,15 +30,23 @@ bun run design:scaffold <spec.json> [--out <dir>]
 ```
 
 The generator builds the color scales **accessible by construction** (text steps'
-lightness solved to meet WCAG on the canvas) and **self-gates** — it refuses to emit a
-system that fails the deterministic floor (valid DTCG, no circular refs, contrast,
-type/spacing scales).
+lightness solved to meet WCAG on every canvas-class background — canvas, subtle,
+surface) and **self-gates** — it refuses to emit a system that fails the deterministic
+floor (valid DTCG, no circular refs, contrast, type/spacing scales).
 
 ## 4. Gate
-The deterministic floor ran in step 3. The judged half — "is it on-brand?" — runs the
-per-system `evals/design.json` against a `DesignJudge` (`runDesignEval`, needs an API
-key). A system that validates and is accessible but reads as generic or off-brief is not
-done. Refine the spec and re-scaffold until BOTH gates are green.
+Run the standing gate:
+
+```
+bun run design:check
+```
+
+It re-runs the deterministic floor (validation + contrast + scales) and, when an API
+key is present, the judged half — "is it on-brand?" — via the per-system
+`evals/design.json` against a `DesignJudge` (`runDesignEval`). A system that validates
+and is accessible but reads as generic or off-brief is not done. Refine the spec and
+re-scaffold until BOTH gates are green. (`design:check` is part of `bun run check`, so
+the factory gate enforces this too.)
 
 > To CONSUME the finished system in real UI, load the `design-foundations` skill — it is
 > the reference for picking semantic tokens by role so output stays on-brand.

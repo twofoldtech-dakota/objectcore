@@ -16,9 +16,19 @@
       "note": "the grilling gate, before planning"
     },
     {
+      "prompt": "Before we build this new plugin, grill me: what questions about its scope and success criteria do I still need to answer?",
+      "expect": "specifying",
+      "note": "second distinct intent — asking to be interrogated, not to plan"
+    },
+    {
       "prompt": "I have a pinned spec. Choose the components and draft the activation eval cases for this new plugin.",
       "expect": "planning",
       "note": "turning a decided spec into a PluginSpec"
+    },
+    {
+      "prompt": "The spec for my plugin is decided — map it to skills vs commands and write the PluginSpec JSON the scaffolder takes.",
+      "expect": "planning",
+      "note": "second distinct intent — component mapping for a finished spec"
     },
     {
       "prompt": "What's the capital of France?",
@@ -29,6 +39,11 @@
       "prompt": "Help me write a great cover letter for a job application.",
       "expect": null,
       "note": "confusability negative — shares 'write'/'great', wrong intent"
+    },
+    {
+      "prompt": "Write up a migration plan for moving our database from MySQL to Postgres.",
+      "expect": null,
+      "note": "confusability negative — 'plan' without plugin intent; nearer to planning than the cover letter"
     }
   ]
 }

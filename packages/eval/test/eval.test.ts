@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { GitWorkspaceSource } from "@objectcore/registry-core";
 import { deriveCatalog } from "@objectcore/registry-core";
 import type { MarketplaceJson, WorkspacePlugin } from "@objectcore/registry-core";
+import type Anthropic from "@anthropic-ai/sdk";
 
 import {
   parseFrontmatter,
@@ -14,8 +15,8 @@ import {
 } from "../src/trigger-surface";
 import { runOutputEvals } from "../src/output";
 import { runCoverageEvals, runReadinessEvals } from "../src/coverage";
-import { MockJudge } from "../src/judge";
-import { runPluginActivation } from "../src/activation";
+import { AnthropicJudge, MockJudge } from "../src/judge";
+import { runActivationEvals, runPluginActivation } from "../src/activation";
 import { runPluginDelegation } from "../src/delegation";
 import { buildEvidence, summarizeEvidence } from "../src/evidence";
 import { buildReport, isGreen } from "../src/runner";
@@ -349,4 +350,266 @@ test("buildEvidence collects failures and flags low-confidence passes as near-mi
   expect(summary).toContain("gate RED");
   expect(summary).toContain("case-0: x");
   expect(summary).toContain("near-misses");
+});
+
+// --- frontmatter block scalars (F56) ------------------------------------------
+
+test("parseFrontmatter folds a `>-` block scalar and emits no bogus keys from continuation lines", () => {
+  const raw =
+    "---\nname: foo\ndescription: >-\n  Use when X: do Y\n  and also Z.\ntools: Bash\n---\nbody";
+  const fm = parseFrontmatter(raw);
+  expect(fm.description).toBe("Use when X: do Y and also Z.");
+  expect(fm.tools).toBe("Bash");
+  // the "Use when X" continuation line must not surface as a key
+  expect(Object.keys(fm).sort()).toEqual(["description", "name", "tools"]);
+});
+
+test("parseFrontmatter joins a literal `|` block scalar with newlines", () => {
+  const raw = "---\nname: foo\ndescription: |\n  line one\n  line two\n---\n";
+  expect(parseFrontmatter(raw).description).toBe("line one\nline two");
+});
+
+// --- spec-loading discipline (F6: a broken evals/*.json fails closed) ---------
+
+test("a malformed evals/activation.json is a red spec-unreadable result, never 'absent'", async () => {
+  const root = await mkdtemp(join(tmpdir(), "spec-bad-"));
+  try {
+    await writePlugin(root, "corrupt", "s", "s");
+    await writeFile(join(root, "corrupt", "evals", "activation.json"), "{bad json,,,");
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+
+    const coverage = await runCoverageEvals(plugins);
+    const unreadable = coverage.find((r) => r.name === "spec-unreadable:evals/activation.json");
+    expect(unreadable?.passed).toBe(false);
+    expect(unreadable?.level).toBe("error");
+    expect(unreadable?.detail).toContain("evals/activation.json");
+
+    // The activation layer reports the same red instead of silently running zero cases.
+    const activation = await runActivationEvals(plugins, [], new MockJudge());
+    expect(
+      activation.some((r) => r.name === "spec-unreadable:evals/activation.json" && !r.passed),
+    ).toBe(true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a wrong-shape spec ({"cases": {}}) is a red result, not a TypeError', async () => {
+  const root = await mkdtemp(join(tmpdir(), "spec-shape-"));
+  try {
+    await writePlugin(root, "shapely", "s", "s");
+    await writeFile(join(root, "shapely", "evals", "activation.json"), JSON.stringify({ cases: {} }));
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runCoverageEvals(plugins);
+    const unreadable = results.find((r) => r.name === "spec-unreadable:evals/activation.json");
+    expect(unreadable?.passed).toBe(false);
+    expect(unreadable?.detail).toContain("`cases` must be an array");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a malformed evals/output.json fails the output suite naming the file", async () => {
+  const root = await mkdtemp(join(tmpdir(), "spec-out-"));
+  try {
+    const dir = join(root, "outbad");
+    await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(dir, ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "outbad", version: "0.0.1", description: "d" }) + "\n",
+    );
+    await mkdir(join(dir, "evals"), { recursive: true });
+    await writeFile(join(dir, "evals", "output.json"), "not json at all");
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const catalog: MarketplaceJson = { name: "objectcore", owner: { name: "Dakota" }, plugins: [] };
+    const results = await runOutputEvals(plugins, catalog);
+    const unreadable = results.find((r) => r.name === "spec-unreadable:evals/output.json");
+    expect(unreadable?.passed).toBe(false);
+    expect(unreadable?.level).toBe("error");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// --- expect-exists (F9: stale cases must fail offline) ------------------------
+
+test("coverage: an activation case expecting an undeclared skill fails expect-exists offline", async () => {
+  const root = await mkdtemp(join(tmpdir(), "cov-ghost-"));
+  try {
+    await writePlugin(root, "stale", "real-skill", "ghost-skill");
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runCoverageEvals(plugins);
+    const ghost = results.find((r) => r.plugin === "stale" && r.name === "expect-exists:case-0");
+    expect(ghost?.passed).toBe(false);
+    expect(ghost?.detail).toContain('unknown skill "ghost-skill"');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("coverage: expect-exists runs even when the plugin declares zero skills (fully-deleted skill set)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "cov-orphan-"));
+  try {
+    const dir = join(root, "orphan");
+    await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(dir, ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "orphan", version: "0.0.1", description: "d" }) + "\n",
+    );
+    await mkdir(join(dir, "evals"), { recursive: true });
+    await writeFile(
+      join(dir, "evals", "activation.json"),
+      JSON.stringify({ cases: [{ prompt: "p", expect: "gone" }] }) + "\n",
+    );
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runCoverageEvals(plugins);
+    const ghost = results.find((r) => r.plugin === "orphan" && r.name === "expect-exists:case-0");
+    expect(ghost?.passed).toBe(false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("coverage: a delegation case expecting an undeclared agent fails delegation-expect-exists", async () => {
+  const root = await mkdtemp(join(tmpdir(), "cov-agt-ghost-"));
+  try {
+    await writeAgentPlugin(root, "stale", "real-agent", "real body", "ghost-agent", true);
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runCoverageEvals(plugins);
+    const ghost = results.find(
+      (r) => r.plugin === "stale" && r.name === "delegation-expect-exists:case-0",
+    );
+    expect(ghost?.passed).toBe(false);
+    expect(ghost?.detail).toContain('unknown agent "ghost-agent"');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// --- description floor (F56) ---------------------------------------------------
+
+test("coverage: a skill whose description parses to empty fails has-description", async () => {
+  const root = await mkdtemp(join(tmpdir(), "cov-desc-"));
+  try {
+    const dir = join(root, "blank");
+    await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(dir, ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "blank", version: "0.0.1", description: "d" }) + "\n",
+    );
+    await mkdir(join(dir, "skills", "s"), { recursive: true });
+    await writeFile(join(dir, "skills", "s", "SKILL.md"), "---\nname: s\ndescription:\n---\nbody\n");
+    await mkdir(join(dir, "evals"), { recursive: true });
+    await writeFile(
+      join(dir, "evals", "activation.json"),
+      JSON.stringify({ cases: [{ prompt: "p", expect: "s" }, { prompt: "n", expect: null }] }) + "\n",
+    );
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runCoverageEvals(plugins);
+    const desc = results.find((r) => r.plugin === "blank" && r.name === "has-description:s");
+    expect(desc?.passed).toBe(false);
+    expect(desc?.level).toBe("error");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// --- placeholder-case readiness (F16) ------------------------------------------
+
+test("readiness: the metaPluginSpec placeholder positive case is not ship-ready", async () => {
+  const root = await mkdtemp(join(tmpdir(), "rdy-ph-"));
+  try {
+    const dir = join(root, "meta-ish");
+    await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(dir, ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "meta-ish", version: "0.0.1", description: "d" }) + "\n",
+    );
+    await mkdir(join(dir, "skills", "s"), { recursive: true });
+    await writeFile(join(dir, "skills", "s", "SKILL.md"), "---\nname: s\ndescription: d\n---\nreal body\n");
+    await mkdir(join(dir, "evals"), { recursive: true });
+    await writeFile(
+      join(dir, "evals", "activation.json"),
+      JSON.stringify({
+        cases: [
+          {
+            prompt: "Help me with: d",
+            expect: "s",
+            note: "auto-added so the skill is gated — replace with a real positive prompt",
+          },
+          { prompt: "n", expect: null },
+        ],
+      }) + "\n",
+    );
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runReadinessEvals(plugins);
+    const placeholder = results.find(
+      (r) => r.plugin === "meta-ish" && r.name === "case-filled:activation:case-0",
+    );
+    expect(placeholder?.passed).toBe(false);
+    expect(placeholder?.detail).toContain("placeholder");
+    // ...but structural coverage still passes: the case IS a positive for `s`.
+    const coverage = await runCoverageEvals(plugins);
+    expect(coverage.find((r) => r.name === "covers:s")?.passed).toBe(true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("readiness: a case carrying the forge:todo stub marker in its note is not ship-ready", async () => {
+  const root = await mkdtemp(join(tmpdir(), "rdy-stub-"));
+  try {
+    await writeAgentPlugin(root, "marked", "a", "real body", "a", true);
+    await writeFile(
+      join(root, "marked", "evals", "delegation.json"),
+      JSON.stringify({
+        cases: [
+          { prompt: "delegate to a", expect: "a", note: "<!-- forge:todo --> auto-added" },
+          { prompt: "n", expect: null },
+        ],
+      }) + "\n",
+    );
+    const plugins = await new GitWorkspaceSource(root).listPlugins();
+    const results = await runReadinessEvals(plugins);
+    const placeholder = results.find(
+      (r) => r.plugin === "marked" && r.name === "case-filled:delegation:case-0",
+    );
+    expect(placeholder?.passed).toBe(false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// --- judge fail-closed (F8) ----------------------------------------------------
+
+const fakeClient = (res: object): Anthropic =>
+  ({ messages: { create: async () => res } }) as unknown as Anthropic;
+
+test("AnthropicJudge fails closed on a verdict-less response (no text block)", async () => {
+  const judge = new AnthropicJudge({
+    client: fakeClient({ content: [], stop_reason: "max_tokens" }),
+  });
+  await expect(judge.route("p", SURFACES)).rejects.toThrow(/no text block/);
+});
+
+test("AnthropicJudge clamps confidence to [0,1] and annotates an unknown skill name", async () => {
+  const mk = (payload: object): AnthropicJudge =>
+    new AnthropicJudge({
+      client: fakeClient({
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        stop_reason: "end_turn",
+      }),
+    });
+
+  const over = await mk({ skill: "alpha", confidence: 3, reason: "r" }).route("p", SURFACES);
+  expect(over.skill).toBe("alpha");
+  expect(over.confidence).toBe(1);
+  expect(over.reason).toBe("r");
+
+  const ghost = await mk({ skill: "ghost", confidence: -2, reason: "r" }).route("p", SURFACES);
+  // Kept (not thrown): a hallucinated route is a legitimate failure of the case,
+  // and the annotated reason makes the failure detail diagnosable.
+  expect(ghost.skill).toBe("ghost");
+  expect(ghost.confidence).toBe(0);
+  expect(ghost.reason).toContain('unknown skill "ghost"');
 });

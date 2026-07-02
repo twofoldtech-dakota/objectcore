@@ -2,8 +2,9 @@
 // compact brief (brand hues, mood, base unit, type ratio), it emits a COMPLETE,
 // ACCESSIBLE-BY-CONSTRUCTION DTCG token SSOT: a Radix-style 12-step role-mapped color
 // scale per family (steps 1-2 app bg, 3-5 component bg, 6-8 borders, 9-10 solid, 11-12
-// text), with the TEXT steps' lightness SOLVED so they meet WCAG contrast on the
-// canvas (the "reverse" idea from the research, simplified to an L-search), plus a type
+// text), with the TEXT steps' lightness SOLVED so they meet WCAG contrast on EVERY
+// canvas-class bg step the semantic set aliases (worst case: the step-3 surface — the
+// "reverse" idea from the research, simplified to an L-search), plus a type
 // scale from the ratio, a spacing ladder from the base unit, an M3 motion ladder, fonts,
 // radii, semantic aliases, and a light/dark resolver. Like forge's scaffold it is a
 // SKELETON to refine — but it self-gates against P2, so a fresh scaffold is already
@@ -76,11 +77,15 @@ function solveTextL(bg: ColorValue, hue: number, chroma: number, appearance: "li
   return 0.95;
 }
 
-/** A 12-step OKLCH scale for one appearance, with accessible text steps (11→AA, 12→AAA). */
-function generateScale(hue: number, chroma: number, appearance: "light" | "dark"): ColorValue[] {
+/** A 12-step OKLCH scale for one appearance, with accessible text steps (11→AA, 12→AAA).
+ *  Text is solved against `textBg` — the WORST-CASE bg the text will actually sit on.
+ *  The semantic set aliases bg.canvas/bg.subtle/bg.surface to steps 1-3, and step 3 is
+ *  the binding constraint in BOTH appearances (darkest bg in light mode, lightest in
+ *  dark), so solving there makes the canvas/subtle pairs pass by construction. */
+function generateScale(hue: number, chroma: number, appearance: "light" | "dark", textBg?: ColorValue): ColorValue[] {
   const ramp = appearance === "light" ? LIGHT_L : DARK_L;
   const steps: ColorValue[] = ramp.map((L, i) => oklch(L, chroma * CFRAC[i]!, hue));
-  const bg = steps[0]!;
+  const bg = textBg ?? steps[2]!;
   const c11 = chroma * CFRAC[10]!;
   const c12 = chroma * CFRAC[11]!;
   steps.push(oklch(solveTextL(bg, hue, c11, appearance, 4.5), c11, hue)); // step 11 (low-contrast text)
@@ -113,10 +118,22 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
     : [{ name: "neutral", hue: neutralHue, chroma: 0.004 }, ...spec.colors];
 
   // ── primitives ──
+  // The semantic text tokens (text.* AND accent.text) all sit on the NEUTRAL surfaces
+  // (bg.canvas/subtle/surface = neutral steps 1-3), so every family's text steps are
+  // solved against the neutral worst-case bg (step 3) — not the family's own scale.
+  const neutral = families.find((f) => f.name === "neutral")!;
+  const neutralCh = neutral.chroma ?? 0.004;
+  const textBg = {
+    light: generateScale(neutral.hue, neutralCh, "light")[2]!,
+    dark: generateScale(neutral.hue, neutralCh, "dark")[2]!,
+  };
   const color: Record<string, unknown> = { $type: "color" };
   for (const f of families) {
     const ch = f.name === "neutral" ? (f.chroma ?? 0.004) : (f.chroma ?? 0.15);
-    color[f.name] = { light: stepsToGroup(generateScale(f.hue, ch, "light")), dark: stepsToGroup(generateScale(f.hue, ch, "dark")) };
+    color[f.name] = {
+      light: stepsToGroup(generateScale(f.hue, ch, "light", textBg.light)),
+      dark: stepsToGroup(generateScale(f.hue, ch, "dark", textBg.dark)),
+    };
   }
 
   // Font sizes in rem (relative to a 16px root) at 3-decimal precision — keeps the
@@ -195,12 +212,17 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
   issues.push(...out.issues);
   for (const theme of out.themes) {
     const get = (p: string) => theme.tokens.find((t) => t.path === p)?.value;
-    issues.push(
-      ...checkContrast([
-        { label: `${theme.name}: text.primary on bg.canvas`, fg: get("text.primary"), bg: get("bg.canvas"), level: "AAA" },
-        { label: `${theme.name}: text.subtle on bg.canvas`, fg: get("text.subtle"), bg: get("bg.canvas") },
-      ]),
-    );
+    // Text must hold on EVERY canvas-class bg the semantic set aliases — a text token
+    // that only passes on bg.canvas fails the moment it sits on a card (bg.surface).
+    const pairs: Parameters<typeof checkContrast>[0] = [];
+    for (const bg of ["bg.canvas", "bg.subtle", "bg.surface"]) {
+      pairs.push(
+        { label: `${theme.name}: text.primary on ${bg}`, fg: get("text.primary"), bg: get(bg), level: "AAA" },
+        { label: `${theme.name}: text.subtle on ${bg}`, fg: get("text.subtle"), bg: get(bg) },
+        { label: `${theme.name}: accent.text on ${bg}`, fg: get("accent.text"), bg: get(bg) },
+      );
+    }
+    issues.push(...checkContrast(pairs));
   }
   issues.push(...checkTypeScale(TYPE_STEPS.map(([n]) => (size[n] as { $value: { value: number } }).$value.value), { ratio }));
   issues.push(...checkSpacingGrid(SPACE_MULT.map((m) => m * baseUnit), { base: baseUnit }));

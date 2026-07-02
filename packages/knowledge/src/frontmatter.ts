@@ -54,16 +54,35 @@ function parseTags(raw: string): string[] {
     .filter(Boolean);
 }
 
-/** Serialize an entry back to its file form. Deterministic — round-trips parseEntry. */
+/** Reject values that would break the one-line frontmatter format. The KB must
+ *  never be brickable by one bad append: a newline here would emit a file every
+ *  later parseEntry (kb:add, kb:index, kb:check) chokes on. */
+function fmValue(field: string, v: string): string {
+  if (/[\n\r]/.test(v)) {
+    throw new Error(`entry field \`${field}\` must be single-line (it is emitted as frontmatter): ${JSON.stringify(v)}`);
+  }
+  return v;
+}
+
+/** A tag must survive parseTags: no list delimiters, no newlines, no trim drift. */
+function fmTag(t: string): string {
+  if (/[\n\r,\[\]]/.test(t) || t.trim() !== t || !t) {
+    throw new Error(`tag ${JSON.stringify(t)} would break the frontmatter tag list (no ',', '[', ']', newlines, or leading/trailing whitespace)`);
+  }
+  return t;
+}
+
+/** Serialize an entry back to its file form. Deterministic — round-trips parseEntry.
+ *  Throws on frontmatter-breaking field content instead of writing a corrupt form. */
 export function serializeEntry(e: KnowledgeEntry): string {
   const lines = [
     DELIM,
-    `id: ${e.id}`,
-    `type: ${e.type}`,
-    `title: ${e.title}`,
-    `tags: [${e.tags.join(", ")}]`,
+    `id: ${fmValue("id", e.id)}`,
+    `type: ${fmValue("type", e.type)}`,
+    `title: ${fmValue("title", e.title)}`,
+    `tags: [${e.tags.map(fmTag).join(", ")}]`,
   ];
-  if (e.source) lines.push(`source: ${e.source}`);
-  lines.push(`created: ${e.created}`, DELIM, "", e.body.trimEnd(), "");
+  if (e.source) lines.push(`source: ${fmValue("source", e.source)}`);
+  lines.push(`created: ${fmValue("created", e.created)}`, DELIM, "", e.body.trimEnd(), "");
   return lines.join("\n");
 }

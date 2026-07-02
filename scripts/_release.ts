@@ -48,6 +48,25 @@ export function gitSha(root: string): string {
   return git(root, ["rev-parse", "HEAD"]);
 }
 
+/** The commit a release tag points at (`rev-list -n1` peels annotated tags).
+ *  Pin shas must resolve from the tag, never bare HEAD — a post-release push to
+ *  main would otherwise silently drift an "immutable" pin away from its tag.
+ *  Throws when the tag does not exist (fail closed; no HEAD fallback). */
+export function tagSha(root: string, tag: string): string {
+  return git(root, ["rev-list", "-n", "1", tag]);
+}
+
+/** True when `path` differs between `sha` and HEAD — untagged content drift that
+ *  would ship under an old version if pinned anyway. */
+export function pathChangedSince(root: string, sha: string, path: string): boolean {
+  try {
+    git(root, ["diff", "--quiet", sha, "HEAD", "--", path]);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 export function existingTags(root: string): Set<string> {
   try {
     return new Set(

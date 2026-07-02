@@ -3,13 +3,23 @@
 // ingest -> serve round-trip without a libSQL connection.
 
 import type { CatalogStore, StoredPlugin } from "@objectcore/registry-core";
+import { assertVersionImmutable } from "./immutable";
 
 export class InMemoryCatalogStore implements CatalogStore {
   private readonly versions = new Map<string, StoredPlugin>(); // `${name}@${version}`
   private readonly channels = new Map<string, Map<string, string>>(); // channel -> name -> version
 
   async upsertVersion(p: StoredPlugin): Promise<void> {
-    this.versions.set(`${p.manifest.name}@${p.version}`, p);
+    const key = `${p.manifest.name}@${p.version}`;
+    const prev = this.versions.get(key);
+    if (prev) {
+      // First-write-wins: identical coordinates are idempotent; only provenance
+      // may be added/updated, and an undefined incoming never wipes a stored one.
+      assertVersionImmutable(prev, p);
+      this.versions.set(key, { ...prev, provenance: p.provenance ?? prev.provenance });
+      return;
+    }
+    this.versions.set(key, p);
   }
 
   async setChannel(channel: string, name: string, version: string): Promise<void> {

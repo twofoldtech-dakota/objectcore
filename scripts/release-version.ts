@@ -4,8 +4,9 @@
 //   2. keep its evals/output.json `expectEntry.version` in lockstep (so the output
 //      eval still passes after the bump)
 //   3. prepend its CHANGELOG.md
-//   4. delete the consumed changeset files
-//   5. re-derive marketplace.json through the SAME deriveCatalog seam + validate
+//   4. re-derive marketplace.json through the SAME deriveCatalog seam + validate
+//   5. delete the consumed changeset files — LAST, so a failed validation never
+//      strands a half-applied release with the intent record (the changesets) gone
 // Tagging/SHA-pinning happen later, in release-publish, after this is merged.
 
 import { join } from "node:path";
@@ -52,18 +53,30 @@ for (const r of plan.releases) {
   const manifestPath = join(plugin.dir, ".claude-plugin", "plugin.json");
   await writeFile(manifestPath, setJsonVersion(await readFile(manifestPath, "utf8"), r.newVersion), "utf8");
 
-  // 2. evals/output.json expectEntry.version, if it pins one
+  // 2. evals/output.json expectEntry.version, if it pins one. Only a MISSING file is
+  // fine to skip; a malformed or unwritable one must fail loudly — silently skipping
+  // ships a bumped plugin.json with a stale expectEntry.version, and the red surfaces
+  // later as a confusing output-eval mismatch far from the cause.
   const outPath = join(plugin.dir, "evals", "output.json");
+  let rawSpec: string | null = null;
   try {
-    const spec = JSON.parse(await readFile(outPath, "utf8")) as {
-      expectEntry?: Record<string, unknown>;
-    };
+    rawSpec = await readFile(outPath, "utf8");
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+  }
+  if (rawSpec !== null) {
+    let spec: { expectEntry?: Record<string, unknown> };
+    try {
+      spec = JSON.parse(rawSpec) as { expectEntry?: Record<string, unknown> };
+    } catch (e) {
+      console.error(`✗ ${outPath} is not valid JSON — cannot keep expectEntry.version in lockstep: ${(e as Error).message}`);
+      console.error("  restore the applied edits with `git checkout -- plugins/`, fix the file, and re-run.");
+      process.exit(1);
+    }
     if (spec.expectEntry && "version" in spec.expectEntry) {
       spec.expectEntry.version = r.newVersion;
       await writeFile(outPath, JSON.stringify(spec, null, 2) + "\n", "utf8");
     }
-  } catch {
-    /* no output.json — fine */
   }
 
   // 3. CHANGELOG.md
@@ -82,18 +95,21 @@ if (dryRun) {
   process.exit(0);
 }
 
-// 4. consume the changesets
-for (const cs of changesets) {
-  await unlink(join(root, CHANGESET_DIR, `${cs.id}.md`));
-}
-
-// 5. re-derive + validate + write (single derivation path)
+// 4. re-derive + validate + write (single derivation path)
 const after = await loadWorkspace(root);
 const errors = (await validateAll(after.plugins, after.catalog)).filter((i) => i.level === "error");
 if (errors.length) {
   for (const i of errors) console.error(`[error] ${i.plugin ? i.plugin + ": " : ""}${i.message}`);
   console.error("\n✗ validation failed after versioning — marketplace.json NOT written.");
+  console.error("  plugin.json/CHANGELOG edits were already applied (the changesets were NOT deleted);");
+  console.error("  restore with `git checkout -- .` before re-running, or a re-run would double-bump.");
   process.exit(1);
 }
 await new GitFileSink(join(root, ".claude-plugin", "marketplace.json")).publish(after.catalog);
+
+// 5. consume the changesets — the last, safest step: the intent record survives any
+// failure above, so recovery is always `git checkout` + re-run.
+for (const cs of changesets) {
+  await unlink(join(root, CHANGESET_DIR, `${cs.id}.md`));
+}
 console.log(`\n✓ versioned ${plan.releases.length} plugin(s); catalog re-derived. Commit the result.`);

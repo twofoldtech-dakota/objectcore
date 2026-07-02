@@ -50,8 +50,33 @@ if (hasApiKey()) {
     collectSkillSurfaces(plugins),
     collectAgentSurfaces(plugins),
   ]);
-  results.push(...(await runActivationEvals(plugins, skillSurfaces, judge)));
-  results.push(...(await runDelegationEvals(plugins, agentSurfaces, judge)));
+  // Fail CLOSED on a judge crash: one thrown 429/529 mid-run must still produce
+  // THIS run's evidence + score. An escaped throw would exit before the writes
+  // below, leaving a stale dist/eval-evidence.json that the reflection hook
+  // trusts (and dropping the OQ4 score update). Each suite degrades to a red
+  // judge-error result; the run then exits 1 through the normal RED path.
+  try {
+    results.push(...(await runActivationEvals(plugins, skillSurfaces, judge)));
+  } catch (e) {
+    results.push({
+      suite: "activation",
+      name: "judge-error",
+      level: "error",
+      passed: false,
+      detail: `judge errored mid-run: ${(e as Error).message} — remaining activation cases were not scored`,
+    });
+  }
+  try {
+    results.push(...(await runDelegationEvals(plugins, agentSurfaces, judge)));
+  } catch (e) {
+    results.push({
+      suite: "delegation",
+      name: "judge-error",
+      level: "error",
+      passed: false,
+      detail: `judge errored mid-run: ${(e as Error).message} — remaining delegation cases were not scored`,
+    });
+  }
 } else {
   skipped.push(
     "activation + delegation evals — no ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN. " +

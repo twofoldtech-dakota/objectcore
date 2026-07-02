@@ -1,6 +1,6 @@
 ---
 name: building-the-catalog
-description: Reference for how the ObjectCore marketplace catalog is derived — the deriveCatalog seam, the source/sink ports, and the sync invariant. Use when changing how marketplace.json is produced, debugging a stale or drifted catalog, or reasoning about the Git-now / backend-later swap.
+description: Reference for how the ObjectCore marketplace catalog is derived — the deriveCatalog seam, the source/sink ports, and the sync invariant. Use when changing how marketplace.json is produced, when marketplace.json is stale, drifted, or out of sync with the plugin dirs, or when reasoning about the Git/DB source swap. (A plugin failing the manifest rules is validating-plugins' territory.)
 ---
 # Building the catalog (the seam)
 
@@ -11,9 +11,9 @@ deriveCatalog(plugins) -> marketplace.json
 ```
 
 ## Ports + adapters
-- **Source** (`CatalogSource`) reads plugins. Today `GitWorkspaceSource` reads `./plugins/<name>/.claude-plugin/plugin.json`; at Stage 3 `RegistryDbSource` reads the DB. Same contract.
-- **Sink** (`CatalogSink`) publishes. Today `GitFileSink` writes the file; the Hono app serves the same derivation over HTTP (dev loop now, prod later).
-- The **same `deriveCatalog`** runs in `scripts/build-marketplace.ts` and in the server handler. That is what makes the backend a relocation, not a rewrite — never write a second derivation path.
+- **Source** (`CatalogSource`) reads plugins. `GitWorkspaceSource` reads `./plugins/<name>/.claude-plugin/plugin.json` (the repo/dev loop); `RegistryDbSource` reads the registry DB (the live backend). Same contract — reads swap the source.
+- **Sink** (`CatalogSink`) publishes. `GitFileSink` writes the committed file; the Hono app serves the same derivation over HTTP (dev loop and prod alike).
+- The **same `deriveCatalog`** runs in `scripts/build-marketplace.ts` and in the server handler. That is what made the backend a relocation, not a rewrite — never write a second derivation path.
 
 ## What derivation does
 - Sorts entries by name (deterministic output for the same input).
@@ -25,5 +25,5 @@ deriveCatalog(plugins) -> marketplace.json
 - **Dir ↔ entry is one-to-one** — every plugin has exactly one entry and vice-versa (no stale, duplicate, or orphan).
 - **Marketplace `name`** is kebab-case and not on Anthropic's reserved list.
 
-## Channels (forward-looking)
-A *channel* is a release track (e.g. stable vs canary), realized as a branch or a second marketplace. It is still the same `deriveCatalog` over a different plugin set or sink — not a new derivation path.
+## Channels
+A *channel* is a release track (e.g. stable vs canary), served at `GET /v1/:channel/marketplace.json` (allowlisted via `OBJECTCORE_CHANNELS`). It is still the same `deriveCatalog` over a different plugin set — not a new derivation path.

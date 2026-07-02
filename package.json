@@ -29,6 +29,7 @@
     "registry:prod": "bun run packages/registry-server/src/prod.ts",
     "registry:ingest": "bun run scripts/registry-ingest.ts",
     "registry:publish": "bun run scripts/registry-publish.ts",
+    "registry:smoke": "bun run scripts/registry-smoke.ts",
     "db:migrate": "bun run scripts/db-migrate.ts",
     "test": "bun test"
   },
@@ -42,7 +43,7 @@
     "@objectcore/knowledge": "workspace:*"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/bun": "1.3.14",
     "typescript": "^5.6.0"
   }
 }

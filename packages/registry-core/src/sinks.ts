@@ -3,7 +3,7 @@
 // RegistryDbSink ingests the published (pinned) catalog into the registry DB.
 
 import { writeFile } from "node:fs/promises";
-import type { MarketplaceEntry, MarketplaceJson, PluginManifest } from "./types";
+import type { MarketplaceEntry, MarketplaceJson, PluginManifest, PluginSource } from "./types";
 import type { CatalogStore, StoredPlugin } from "./sources";
 
 export interface CatalogSink {
@@ -62,19 +62,29 @@ export class RegistryDbSink implements CatalogSink {
       .replace(/^\.\//, "")
       .replace(/\/+$/, "");
 
+    // First pass: validate EVERY entry before any write. The checks are pure input
+    // checks, so pre-validating (rather than store transactions) is what keeps a
+    // mid-catalog offender from leaving the live DB half-old/half-new.
+    const offenders: string[] = [];
     for (const e of catalog.plugins) {
       const src = e.source;
       if (typeof src === "string" || src.source !== "git-subdir") {
-        throw new Error(
-          `RegistryDbSink expects pinned git-subdir entries; "${e.name}" is not pinned. ` +
-            "Only versioned, SHA-pinned plugins can be published to the registry.",
+        offenders.push(
+          `"${e.name}" is not pinned (bare-path source) — only versioned, SHA-pinned plugins are publishable`,
         );
+      } else if (!e.version || !src.ref || !src.sha) {
+        offenders.push(`"${e.name}" is missing version/ref/sha — cannot publish an unpinned entry`);
       }
-      if (!e.version || !src.ref || !src.sha) {
-        throw new Error(
-          `RegistryDbSink: "${e.name}" is missing version/ref/sha — cannot publish an unpinned entry.`,
-        );
-      }
+    }
+    if (offenders.length) {
+      throw new Error(
+        `RegistryDbSink expects pinned git-subdir entries; refusing the whole catalog (no partial write):\n` +
+          offenders.map((o) => `  - ${o}`).join("\n"),
+      );
+    }
+
+    for (const e of catalog.plugins) {
+      const src = e.source as Extract<PluginSource, { source: "git-subdir" }>;
       const relDir = src.path.startsWith(`${base}/`) ? src.path.slice(base.length + 1) : src.path;
 
       const manifest = { name: e.name } as PluginManifest;
@@ -87,13 +97,14 @@ export class RegistryDbSink implements CatalogSink {
       const stored: StoredPlugin = {
         manifest,
         relDir,
-        version: e.version,
-        sha: src.sha,
-        ref: src.ref,
+        // Non-null: the first pass rejected any entry missing version/ref/sha.
+        version: e.version!,
+        sha: src.sha!,
+        ref: src.ref!,
         repoUrl: src.url,
       };
       await this.store.upsertVersion(stored);
-      await this.store.setChannel(this.channel, e.name, e.version);
+      await this.store.setChannel(this.channel, e.name, e.version!);
     }
   }
 }

@@ -1,6 +1,5 @@
 node_modules/
 dist/
-.turbo/
 *.log
 *.stackdump
 .claude/worktrees/

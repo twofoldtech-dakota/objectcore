@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./spec";
 export * from "./trigger-surface";
 export * from "./output";
 export * from "./coverage";

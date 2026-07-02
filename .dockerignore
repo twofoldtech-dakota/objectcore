@@ -2,7 +2,10 @@
 node_modules
 **/node_modules
 .git
-dist
+# dist/* (not `dist`) so the negation below can re-include the baked pinned catalog —
+# the break-glass OBJECTCORE_SOURCE=file mode serves it from the image.
+dist/*
+!dist/marketplace.pinned.json
 *.log
 .scratch*
 .scratch-registry.db*

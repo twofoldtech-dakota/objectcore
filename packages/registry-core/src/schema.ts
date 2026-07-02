@@ -10,12 +10,17 @@ import type { PluginManifest, WorkspacePlugin } from "./types";
 import type { ValidationIssue } from "./validate";
 
 /** Every field PluginManifest permits, with how to type-check it. */
-type FieldCheck = "string" | "string[]" | "author" | "dependencies";
+type FieldCheck = "string" | "string[]" | "semver" | "author" | "dependencies";
+
+/** Strict MAJOR.MINOR.PATCH — `version` mints the `{plugin}--v{semver}` release tag
+ *  (tags.ts), so a malformed version is a hard error at the gate, not at release
+ *  time. Matches the bump-time floor in @objectcore/release's parseVersion. */
+const SEMVER = /^\d+\.\d+\.\d+$/;
 
 const MANIFEST_FIELDS: Record<keyof PluginManifest, FieldCheck> = {
   name: "string",
   displayName: "string",
-  version: "string",
+  version: "semver",
   description: "string",
   author: "author",
   homepage: "string",
@@ -78,6 +83,10 @@ export function validateSchema(plugins: WorkspacePlugin[]): ValidationIssue[] {
           break;
         case "string[]":
           if (!isStringArray(value)) problem = `\`${key}\` must be an array of strings`;
+          break;
+        case "semver":
+          if (typeof value !== "string" || !SEMVER.test(value))
+            problem = `\`${key}\` must be MAJOR.MINOR.PATCH semver (e.g. 0.1.0) — it mints the release tag`;
           break;
         case "author":
           problem = checkAuthor(value);

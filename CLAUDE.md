@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-ObjectCore is a self-replicating Claude Code **plugin marketplace built as a software factory**. The deliverable is not the plugins — it's the system that derives and governs a `marketplace.json` catalog from a graph of plugins. Runtime is **Bun + TypeScript**; it's a Bun-workspace monorepo (Turborepo + Changesets layered on top).
+ObjectCore is a self-replicating Claude Code **plugin marketplace built as a software factory**. The deliverable is not the plugins — it's the system that derives and governs a `marketplace.json` catalog from a graph of plugins. Runtime is **Bun + TypeScript** (pinned via `.bun-version`); it's a Bun-workspace monorepo (Changesets-style releases layered on top).
 
 Two companion docs hold authoritative context — read them, they are not optional:
 - `AGENTS.md` — hard rules (the invariants below) and the intended workflow.
@@ -19,9 +19,16 @@ bun test packages/registry-core/test/derive.test.ts   # run one test file
 bun test -t "is pure"            # run tests matching a name
 bun run build:marketplace        # derive + validate -> .claude-plugin/marketplace.json
 bun run validate                 # alias of build:marketplace (derive + validate, same script)
-bun run eval                     # the eval gate: output evals (offline) + activation evals (needs a key)
+bun run eval                     # the eval gate: output/coverage/readiness (offline) + activation/delegation (needs a key)
+bun run eval:record [--note]     # append the latest eval score to metrics/eval-history.jsonl (refuses graded/ungraded mixing)
+bun run eval:trend               # OQ4: the longitudinal gate-health trend from metrics/eval-history.jsonl
 bun run forge:scaffold <spec.json> [--force]   # deterministic half of /forge: emit a plugin + re-derive + validate
 bun run forge:meta <meta-spec.json> [--force]  # generate a new meta-plugin (governance|generator archetype)
+bun run forge:suggest            # F7: derive improvement suggestions from eval evidence (read-only)
+bun run forge:improve <spec>     # F7: apply a forge refinement inside the self-edit boundary
+bun run design:scaffold <spec.json> [--force]  # plan 012: scaffold a DTCG design-token system (accessible by construction)
+bun run design:check             # plan 012: validate + contrast-gate every design/ system (part of check)
+bun run design:build             # plan 012: derive the token views (CSS vars, per-theme JSON, Tailwind, Style Dictionary)
 bun run release:status           # Stage 2: preview what the pending changesets would release
 bun run release:version          # Stage 2: consume changesets -> bump plugin.json + changelogs + re-derive
 bun run release:publish          # Stage 2: tag {plugin}--v{semver}, SHA-pin the catalog, (CI) attest
@@ -29,13 +36,14 @@ bun run check:catalog            # read-only: validate every plugin + assert mar
 bun run kb:add --json '<entry>'  # append a knowledge-base entry (lesson|pattern|gotcha|decision) + regenerate INDEX.md
 bun run kb:index                 # regenerate knowledge/INDEX.md from knowledge/entries/ (INDEX.md is a build artifact)
 bun run kb:check                 # read-only: parse entries + assert INDEX.md is in sync and within budget (part of check)
-bun run check                    # the one-command gate = tsc + check:catalog + kb:check + test + eval (what CI runs)
+bun run check                    # the one-command gate = tsc + check:catalog + kb:check + design:check + test + eval (CI runs this verbatim)
 bun run clean:git                # git hygiene: prune stale worktrees + delete merged branches (--dry-run | --gone | --remote)
 bun run registry:dev            # serve http://localhost:8787/v1/marketplace.json (Git source, dev loop)
 bun run registry:prod           # Stage 3: serve the SHA-pinned catalog from the registry DB (RegistryDbSource); OBJECTCORE_SOURCE=db|file
 bun run db:migrate              # Stage 3: apply the registry DB schema (needs DATABASE_URL; no-op otherwise)
 bun run registry:ingest [path]  # Stage 3: push dist/marketplace.pinned.json into the registry DB (RegistryDbSink; needs DATABASE_URL)
 bun run registry:publish [--dry-run]  # plan 011: OIDC publisher — POST each plugin to /v1/plugins with a GitHub-Actions OIDC token (credential-free alt to ingest; self-gates on OBJECTCORE_REGISTRY_URL)
+bun run registry:smoke           # post-deploy smoke: /readyz + the served pinned catalog (self-gates on OBJECTCORE_REGISTRY_URL)
 bunx tsc                         # typecheck (tsconfig is noEmit; there is no separate lint step)
 ```
 
@@ -51,7 +59,7 @@ deriveCatalog(plugins, opts) -> marketplace.json
 
 The only thing Claude Code ever consumes is a valid `marketplace.json` at a stable URL. That URL is the permanent **seam**; everything behind it swaps without changing the contract. This is why the design is structured as **ports + adapters** around `deriveCatalog`:
 
-- **`CatalogSource`** (`sources.ts`) reads plugins. `GitWorkspaceSource` (operated now) reads `./plugins/<name>/.claude-plugin/plugin.json` off disk. `RegistryDbSource` is a deliberate throwing stub that lights up at the Stage 3 backend trigger.
+- **`CatalogSource`** (`sources.ts`) reads plugins. `GitWorkspaceSource` reads `./plugins/<name>/.claude-plugin/plugin.json` off disk (repo/dev loop). `RegistryDbSource` reads the registry DB (the live backend), with a last-known-good stale-if-error fallback so a transient DB failure never turns the seam into a 500.
 - **`CatalogSink`** (`sinks.ts`) publishes the catalog. `GitFileSink` writes the file (now); `HttpServeSink` holds it in memory for the HTTP server.
 - The **same `deriveCatalog`** runs in `scripts/build-marketplace.ts` (CI/dev: Git source → file sink) and in the Hono handler `packages/registry-server/src/app.ts` (`GET /v1/marketplace.json`). The route and contract never change between dev and the eventual production backend — that's what makes Stage 3 a relocation, not a rewrite.
 
@@ -59,7 +67,7 @@ Because the HTTP adapter runs on every dev loop and the contract tests run on ev
 
 ### The gate (`bun run check` + CI)
 
-The hard rule "no plugin enters the catalog without passing validation AND its activation eval" is enforced by `bun run check` (= `tsc` + `check:catalog` + `test` + `eval`), which is exactly what `.github/workflows/ci.yml` runs on every PR/push. `check:catalog` (`scripts/check-catalog.ts`) is read-only: it re-derives the catalog, runs `validateAll`, and asserts the committed `marketplace.json` *byte-matches* the derivation — so a hand-edit or a forgotten `build:marketplace` fails CI. Activation evals run in CI only when the `ANTHROPIC_API_KEY` secret is set (otherwise reported as skipped, job stays green) — **set that secret to actually enforce the activation half of the gate.**
+The hard rule "no plugin enters the catalog without passing validation AND its activation eval" is enforced by `bun run check` (= `tsc` + `check:catalog` + `kb:check` + `design:check` + `test` + `eval`), which `.github/workflows/ci.yml` runs **verbatim as a single step** on every PR/push — single-sourced in package.json so CI can never silently drift from the local gate. `check:catalog` (`scripts/check-catalog.ts`) is read-only: it re-derives the catalog, runs `validateAll`, and asserts the committed `marketplace.json` *byte-matches* the derivation — so a hand-edit or a forgotten `build:marketplace` fails CI. Activation evals run in CI only when the `ANTHROPIC_API_KEY` secret is set (otherwise reported as skipped, job stays green) — **set that secret to actually enforce the activation half of the gate.**
 
 ### The eval harness (`packages/eval` — Stage 1, the gate)
 
@@ -114,12 +122,18 @@ The flow is `changeset → version → tag {plugin}--v{semver} → SHA-pin → a
   bumps each plugin's `plugin.json`, keeps its `evals/output.json` `expectEntry.version` in lockstep
   (so the output eval still passes), prepends its `CHANGELOG.md`, deletes the changesets, and
   **re-derives `marketplace.json` through the same `deriveCatalog` seam**. CI opens a Version PR with this.
-- **Publish** (`scripts/release-publish.ts`, `bun run release:publish`): tags each plugin
-  `{plugin}--v{semver}` (idempotent), then SHA-pins — `deriveCatalog(plugins, { shaPin, repoUrl })`
-  rewrites every `source` into an immutable `git-subdir` pin (`url`+`path`+`sha`+`{plugin}--v{semver}` `ref`),
-  written to `dist/marketplace.pinned.json`. The committed `marketplace.json` (derived WITHOUT pins) is
-  never touched, so `check:catalog` stays byte-exact. **The `shaPin` path in `deriveCatalog` is the
-  whole point — pins are a publish-time view of the same pure function, not a second derivation.**
+- **Publish** (`scripts/release-publish.ts`, `bun run release:publish`): asserts a clean working
+  tree (`--allow-dirty` is the escape hatch), tags each plugin `{plugin}--v{semver}` (idempotent),
+  then SHA-pins — `deriveCatalog(plugins, { shaPin, repoUrl })` rewrites every `source` into an
+  immutable `git-subdir` pin (`url`+`path`+`sha`+`{plugin}--v{semver}` `ref`), written to
+  `dist/marketplace.pinned.json`. **Pins resolve to each plugin's release-tag commit, never bare
+  HEAD** — a plugin whose dir changed since its tag fails publish loudly ("add a changeset"), so an
+  "immutable" pin can never silently drift. The committed `marketplace.json` (derived WITHOUT pins)
+  is never touched, so `check:catalog` stays byte-exact. **The `shaPin` path in `deriveCatalog` is
+  the whole point — pins are a publish-time view of the same pure function, not a second derivation.**
+  Published versions are **first-write-wins in the registry DB**: re-publishing an identical
+  (name, version) is idempotent (provenance may backfill), different content throws (409 over HTTP) —
+  bump the version instead.
 - **Attest.** `.github/workflows/release.yml` pushes the tags and attests the pinned catalog with build
   provenance (`actions/attest-build-provenance`). The **provenance gate**: `release:publish` refuses to
   publish a plugin that bundles MCP (`mcpServers` or an `.mcp.json`) without attestation — an MCP-bundling
@@ -181,12 +195,21 @@ Stage 3 operates the HTTP backend and flips the catalog source from Git to a DB 
   OR a declared `bundlesMcp`), then a write through the `CatalogStore` port (finally populating the
   `provenance` column). Sink-gated; **armed and live** (`OBJECTCORE_OIDC_AUDIENCE=https://registry.objectcore.ai`,
   `OBJECTCORE_PUBLISH_REPOS=twofoldtech-dakota/objectcore` on Fly; the publisher CLI is armed via the
-  GitHub repo variables `OBJECTCORE_REGISTRY_URL` + `OBJECTCORE_OIDC_AUDIENCE`). The live verifier's
-  network path is untested (like `AnthropicJudge`); the pure authz/parse/gate logic is fully
-  gate-tested. `/v1/marketplace.json` stays frozen.
+  GitHub repo variables `OBJECTCORE_REGISTRY_URL` + `OBJECTCORE_OIDC_AUDIENCE`). Authorization is
+  also **ref-gated** (`OBJECTCORE_PUBLISH_REFS`, default `refs/heads/main`) — a workflow on a random
+  branch of an allowlisted repo cannot publish — and the published `repoUrl` must match the token's
+  verified `repository` claim, so a publisher can only pin sources it controls. Only the JWKS
+  *fetch* is untested network; the whole JWT path (alg/exp/nbf/kid-rotation/signature) is
+  offline-tested via an injectable key source. The verifier requires `exp` and refetches the JWKS
+  once on an unknown `kid` (30s-throttled), so a GitHub key rotation doesn't 401 publishes for the
+  cache TTL. `/v1/marketplace.json` stays frozen — though it (and the channel routes) now send
+  `Cache-Control: public, max-age=60` + a content `ETag` (If-None-Match → 304).
 - **Prod deploy safety.** `prod.ts` runs `store.migrate()` on boot (idempotent) and exposes a
   DB-touching `/readyz` (Fly's health check points at it, not the shallow `/healthz`), so a deploy
-  against a fresh/unreachable DB fails the check instead of serving 500s.
+  against a fresh/unreachable DB fails the check instead of serving 500s. After every deploy,
+  `deploy.yml` runs `bun run registry:smoke` against the live URL (readyz + pinned-catalog shape) —
+  a serve-path regression fails the deploy job, not a user's install. Reads are resilient the other
+  way too: `RegistryDbSource` serves the last-known-good snapshot if the DB blips (stale-if-error).
 
 ### knowledge base + `@objectcore/knowledge` (Stage F1, self-improvement)
 
@@ -242,7 +265,7 @@ they land. F5 built the forge MCP *primitive* (scaffold `.mcp.json`) that could 
 
 ## Hard invariants (breaking these breaks the factory)
 
-1. **`.claude-plugin/marketplace.json` is NEVER hand-edited.** It is a build artifact. Change a plugin, then run `bun run build:marketplace`. (`turbo.json` declares it as a build output.)
+1. **`.claude-plugin/marketplace.json` is NEVER hand-edited.** It is a build artifact. Change a plugin, then run `bun run build:marketplace`. (`check:catalog` asserts the committed file byte-matches a fresh derivation, so a hand-edit fails the gate.)
 2. **All catalog derivation goes through `deriveCatalog`.** Never write a second derivation path.
 3. **Plugin components live at the plugin root** (`commands/`, `agents/`, `skills/`, `hooks/`, `output-styles/`, plus root files `.mcp.json`/`settings.json`), never inside `.claude-plugin/` (which holds only `plugin.json`). `validatePlacement` enforces this for the component dirs.
 4. **`repository` is a string; `keywords` is an array; all names are kebab-case.** Enforced in `validate.ts`; covered by `derive.test.ts`.
@@ -252,8 +275,8 @@ they land. F5 built the forge MCP *primitive* (scaffold `.mcp.json`) that could 
 ## Layout notes
 - `objectcore.config.json` is the single source of marketplace identity (`name`, `owner`, `pluginRoot`, schema/registry URLs); both `build-marketplace.ts` and `dev.ts` read it.
 - `packages/*` are the only npm workspaces. `plugins/*` are **not** workspaces — they are discovered at runtime by `GitWorkspaceSource`.
-- `plugins/plugin-forge/` is the Stage 1 meta-plugin (the spec-driven generator: grill → plan → scaffold → validate, via `/forge`); currently a skeleton. `plugins/hello-objectcore/` is the end-to-end demo plugin.
-- The `OC/` directory holds a packaged snapshot (zip + readme + marketplace.json), not the working source.
+- `plugins/plugin-forge/` is the Stage 1 meta-plugin (the spec-driven generator: grill → plan → scaffold → validate, via `/forge`). `plugins/hello-objectcore/` is the end-to-end demo plugin.
+- `.claude/settings.example.json` is the opt-in dogfood wiring for the factory's own agentic loop (kb-writer + reflection hooks in sessions on THIS repo) — rename to `settings.json` to arm it.
 
 ## Staging
 **Stage 0** (the seam, validation floor, dev server, example plugins), **Stage 1** (the meta-plugins + eval harness gate), and **Stage 2** (Changesets release CI — `release-manager` + `@objectcore/release`: version, tag `{plugin}--v{semver}`, SHA-pin via `deriveCatalog`'s `shaPin` opt, attest; plus strict manifest schema validation) are **built**. **Stage 3** (built) = the HTTP backend operates and the catalog source flips Git → DB: `@objectcore/registry-db` (Turso/libSQL `CatalogStore`), `RegistryDbSource`/`RegistryDbSink`, `prod.ts`, ingestion in release CI, and Fly.io deploy (`Dockerfile`/`fly.toml`/`deploy.yml`). **Search, channels, telemetry (`POST /v1/events` + authenticated `/v1/events/stats`, plan 010), and OIDC publish (`POST /v1/plugins`, plan 011 — verify→authorize→provenance-gate→write) are now built** (additive routes behind the frozen seam — see the registry-backend section + `/readyz` deploy safety). The full D-series of designed registry routes is now built, and **self-service OIDC publishing is armed and live** (`POST /v1/plugins` enforces a real GitHub-Actions OIDC token; Fly secrets `OBJECTCORE_OIDC_AUDIENCE`/`OBJECTCORE_PUBLISH_REPOS` + the publisher CLI armed via repo variables). `registry:publish` (OIDC) is the **single** release-CI publish path — proven end-to-end (12/12 plugins, run 28260201962); `registry:ingest` (direct DB) is retained only as manual break-glass. The forge pipeline was also hardened: pre-write activation↔skill cross-validation + an unfilled-body stub marker (`scaffold.ts`), a ship-readiness eval layer (`runReadinessEvals`), and an updated `plugin-forge` prose set. The `ANTHROPIC_API_KEY`/`FLY_API_TOKEN`/`DATABASE_URL`/`TURSO_AUTH_TOKEN` secrets are set and the backend is **deployed and live on Fly**, serving the SHA-pinned catalog from Turso at `https://objectcore-registry.fly.dev/v1/marketplace.json` (CI enforces the activation gate; merges to main deploy + run the release pipeline). The custom domain is **live**: the registry serves at **`https://registry.objectcore.ai/v1/marketplace.json`** (a CNAME → `objectcore-registry.fly.dev` at GoDaddy + a Fly-managed Let's Encrypt cert; the apex `objectcore.ai` + `www` are reserved for the marketing site on Vercel). No operator items remain deferred. When extending, keep new work behind the existing ports rather than adding new paths.

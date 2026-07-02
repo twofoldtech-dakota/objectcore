@@ -3,8 +3,8 @@
 A self-replicating Claude Code plugin marketplace, built as a software factory.
 **The output is not plugins — it's the system that produces and governs plugins.**
 
-- Marketplace name: `objectcore` · Registry host: `registry.objectcore.ai` (apex `objectcore.ai` reserved for the marketing site)
-- Runtime: Bun + TypeScript · Monorepo: Bun workspaces (+ Turborepo) · Versioning: Changesets
+- Marketplace name: `objectcore` · Live registry: `https://registry.objectcore.ai/v1/marketplace.json`
+- Runtime: Bun + TypeScript · Monorepo: Bun workspaces · Versioning: Changesets
 
 ## Architecture (the seam)
 
@@ -12,31 +12,42 @@ The only thing Claude Code consumes is a valid `marketplace.json` at a stable UR
 the permanent seam; everything behind it is swappable. The invariant is a pure function:
 
 ```
-deriveCatalog(plugins) -> marketplace.json
+deriveCatalog(plugins, opts) -> marketplace.json
 ```
 
-- **Now (Git era):** CI runs `deriveCatalog` reading `./plugins/*` and writes the file
-  (`GitWorkspaceSource` + `GitFileSink`). The Hono app serves it locally as the dev loop.
-- **Stage 3 (backend):** the SAME `deriveCatalog` runs in a Hono handler reading the DB and
-  serving `registry.objectcore.ai/v1/marketplace.json` (`RegistryDbSource` + HTTP). The contract and the
-  route do not change — only the source and sink swap. That is what keeps it from being a rewrite.
+- **Git path (dev + CI):** `deriveCatalog` reads `./plugins/*` and writes the committed file
+  (`GitWorkspaceSource` + `GitFileSink`). `bun run registry:dev` serves it locally as the dev loop.
+- **Backend (live):** the SAME `deriveCatalog` runs in a Hono handler reading the registry DB
+  (Turso/libSQL on Fly.io) and serving the SHA-pinned catalog at
+  `https://registry.objectcore.ai/v1/marketplace.json` (`RegistryDbSource`). The route and the
+  contract did not change when the source flipped Git → DB — a relocation, not a rewrite.
 
-The HTTP adapter runs on every dev loop and the same contract tests run on every CI run, so the
-backend never rots while it waits for a trigger (search/telemetry, dynamic catalogs, >~50 plugins,
-or OIDC publishing).
+Additive routes live behind the frozen seam: search (`GET /v1/search`), channels
+(`GET /v1/:channel/marketplace.json`), telemetry (`POST /v1/events`), and OIDC publish
+(`POST /v1/plugins` — the single release-CI publish path; direct DB ingest is manual break-glass).
 
 ## Layout
 
 ```
 .claude-plugin/marketplace.json   # the catalog (BUILD ARTIFACT — never hand-edited)
 objectcore.config.json            # marketplace identity (single source)
-packages/
-  registry-core/                  # @objectcore/registry-core — the pure seam + adapters + validation
-  registry-server/                # @objectcore/registry-server — Hono app (dev loop now, prod later)
-scripts/build-marketplace.ts      # re-derive + validate + write the catalog
-plugins/
-  plugin-forge/                   # Stage 1 meta-plugin: the spec-driven generator (skeleton)
-  hello-objectcore/               # demo plugin
+packages/                         # the npm workspaces (all pure cores are zero-dep)
+  registry-core/                  # the seam: deriveCatalog + source/sink ports + validation
+  registry-server/                # Hono app: /v1/marketplace.json + search/channels/events/publish
+  registry-db/                    # Turso/libSQL CatalogStore (the only package with a DB dep)
+  eval/                           # the gate: output/coverage/readiness (offline) + activation/delegation (judged)
+  forge/                          # deterministic scaffold engine behind /forge (PluginSpec -> plugin dir)
+  release/                        # release engine: changesets, semver bumps, changelogs, provenance
+  knowledge/                      # the factory KB: KnowledgeStore port + FileKnowledgeStore
+  design/                         # design-system engine: DTCG tokens -> deriveDesignSystem -> sinks
+plugins/                          # 13 plugins, runtime-discovered (NOT workspaces): the meta-plugins
+                                  # (plugin-forge, plugin-validator, marketplace-builder,
+                                  # meta-generator, release-manager, design-forge, ...), the
+                                  # self-improvement loop (knowledge-base, kb-writer, reflection,
+                                  # forge-improver), and demos
+knowledge/                        # KB entries + INDEX.md (build artifact, budget-checked)
+design/                           # the dogfooded design-token SSOT
+scripts/                          # the CLI edge over the pure packages
 AGENTS.md / CONTEXT.md            # the factory's harness config + ubiquitous language
 ```
 
@@ -44,20 +55,33 @@ AGENTS.md / CONTEXT.md            # the factory's harness config + ubiquitous la
 
 ```bash
 bun install
-bun test                 # contract tests for the seam
+bun run check             # the full gate CI runs: tsc + check:catalog + kb:check + design:check + tests + evals
+bun test                  # contract tests for the seam
 bun run build:marketplace # derive + validate -> .claude-plugin/marketplace.json
-bun run eval             # the eval gate: output evals + activation evals (needs ANTHROPIC_API_KEY)
-bun run check            # the full gate CI runs: tsc + catalog validation + tests + evals
+bun run eval              # output/coverage/readiness evals offline; activation/delegation need ANTHROPIC_API_KEY
 bun run registry:dev      # serve http://localhost:8787/v1/marketplace.json
 ```
 
-Then point Claude Code at the local registry:
-`claude --plugin-url http://localhost:8787/v1/marketplace.json`
+Point Claude Code at the live registry:
 
-## Staged plan
+```
+claude --plugin-url https://registry.objectcore.ai/v1/marketplace.json
+```
 
-- **Stage 0 (this repo):** the seam, validation floor, dev server, example plugins. ✅
-- **Stage 1:** the meta-plugins (`plugin-forge` + grilling gate, `marketplace-builder`,
-  `plugin-validator`, `meta-generator`); eval harness (output + trajectory evals).
-- **Stage 2:** Changesets release CI — write versions, tag `{plugin}--v{semver}`, SHA-pin, SLSA.
-- **Stage 3:** operate the backend (flip `RegistryDbSource` + HTTP) at the first trigger.
+(or at the local dev loop: `claude --plugin-url http://localhost:8787/v1/marketplace.json`)
+
+## Stages (all built)
+
+- **Stage 0 — the seam:** `deriveCatalog`, the validation floor, the dev server, example plugins. ✅
+- **Stage 1 — meta-plugins + the gate:** `plugin-forge` (grill → plan → scaffold → gate),
+  `plugin-validator`, `marketplace-builder`, `meta-generator`; the eval harness
+  (output/coverage/readiness offline, activation/delegation judged). ✅
+- **Stage 2 — release pipeline:** changeset → version → tag `{plugin}--v{semver}` → SHA-pin
+  (`deriveCatalog`'s `shaPin` opt) → attest (SLSA provenance); strict manifest schema validation. ✅
+- **Stage 3 — the backend:** Fly.io + Turso, catalog source flipped Git → DB, OIDC publish as the
+  single release path, live at `registry.objectcore.ai`. ✅
+
+Beyond the stages: the self-improving loop (knowledge base, `kb-writer`/`reflection` hooks,
+gate-health trend — plans 008/009) and the design-system pipeline (plan 012).
+
+Detail lives in `CLAUDE.md` (commands + architecture) and `AGENTS.md` (hard rules).
