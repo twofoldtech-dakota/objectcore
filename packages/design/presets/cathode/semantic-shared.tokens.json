@@ -1,0 +1,28 @@
+{
+  "solid": {
+    "success": {
+      "$type": "color",
+      "$value": "{color.pulse.900}"
+    },
+    "warning": {
+      "$type": "color",
+      "$value": "{color.flare.900}"
+    },
+    "danger": {
+      "$type": "color",
+      "$value": "{color.klaxon.900}"
+    },
+    "on-success": {
+      "$type": "color",
+      "$value": "{color.pulse.50}"
+    },
+    "on-warning": {
+      "$type": "color",
+      "$value": "{color.flare.50}"
+    },
+    "on-danger": {
+      "$type": "color",
+      "$value": "{color.klaxon.50}"
+    }
+  }
+}

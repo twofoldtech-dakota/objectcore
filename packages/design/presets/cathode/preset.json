@@ -1,0 +1,40 @@
+{
+  "name": "cathode",
+  "version": "1.2.1",
+  "description": "Loud, technical, emissive — phosphor on dark glass, one live wire of cyan; inkwell's opposite number, measured to WCAG AAA. Nine themes: the glass/daylight pair plus seven channels (terminal, blueprint, ledger, manila, litmus, sonar, redline).",
+  "level": "AAA",
+  "themes": [
+    { "name": "glass", "appearance": "dark", "default": true, "description": "Phosphor on dark glass — the default broadcast." },
+    { "name": "daylight", "appearance": "light", "default": true, "description": "The away kit — full brightness, measured in daylight." },
+    { "name": "terminal", "appearance": "dark", "description": "Green phosphor on black glass — the original console." },
+    { "name": "blueprint", "appearance": "light", "description": "Cyan-washed drafting paper, deep azure lines." },
+    { "name": "ledger", "appearance": "light", "description": "Pale ledger green, ruled and balanced — accounting stock." },
+    { "name": "manila", "appearance": "light", "description": "Folder-stock amber, warm and procedural — paperwork weather." },
+    { "name": "litmus", "appearance": "light", "description": "Test-strip pink, acid-checked — diagnosis in daylight." },
+    { "name": "sonar", "appearance": "dark", "description": "Cyan depth, green ping — instruments below the waterline." },
+    { "name": "redline", "appearance": "dark", "description": "Soot chassis, klaxon signal — running hot on purpose." }
+  ],
+  "brief": {
+    "name": "cathode",
+    "adjectives": ["loud", "technical", "emissive", "precise", "energized"],
+    "intent": "Phosphor on dark glass, one live wire of cyan — where inkwell absorbs light, cathode emits it. A color system for agentic products that ship signal, and can prove it."
+  },
+  "cases": [
+    {
+      "question": "Does this system read as loud, technical phosphor firing at dark glass?",
+      "expect": "pass",
+      "note": "emission, not absorption — built to be noticed and still be trusted"
+    },
+    {
+      "question": "Do the status hues read as indicator lamps — lit only when the machine has something to report?",
+      "expect": "pass",
+      "note": "state is a lamp: pulse, flare and klaxon report, never decorate"
+    },
+    {
+      "question": "Does this system read as quiet, warm, paper-like editorial print?",
+      "expect": "fail",
+      "note": "that is inkwell — the opposite number"
+    }
+  ],
+  "source": "Converted one-shot from the Cathode POC (cathode.tokens.json v1.2, design-system-poc, 2026-07-02): `cathode.` namespace stripped, refs rewritten {cathode.color.*} -> {color.*}, semantic.<theme> split into semantic-<theme>.tokens.json and semantic.solid into semantic-shared.tokens.json; per-token $type kept verbatim; primitives untouched. Version bumped 1.2.0 -> 1.2.1 for the AAA patch: re-points (one step deeper on the same ramp) against the full plan-014 contract matrix — glass accent.subtle-bg volt.900 -> volt.950 (6.36 -> 8.54); daylight accent.default volt.800 -> volt.900 (5.48 on subtle-bg / 6.68 on raised -> 8.07 / 9.84) and accent.hover volt.900 -> volt.950 (keeps hover distinct from the new default); terminal accent.subtle-bg pulse.900 -> pulse.950 (6.38 -> 9.35) and text.muted graphite.400 -> graphite.300 (6.20 on raised -> 7.95; muted now equals secondary); blueprint accent.subtle-bg volt.300 -> volt.200 (6.36 -> 8.07); ledger accent.subtle-bg pulse.300 -> pulse.200 (6.38 -> 7.63); manila accent.subtle-bg flare.300 -> flare.200 (6.56 -> 8.15); litmus text.muted graphite.800 -> graphite.850 (6.64 on raised -> 8.22; muted now equals secondary); sonar accent.subtle-bg pulse.900 -> pulse.950 (6.38 -> 9.35); redline accent.default klaxon.300 -> klaxon.200 (4.55 on subtle-bg / 5.99 on raised -> 8.34 on raised), accent.hover klaxon.200 -> klaxon.100, accent.subtle-bg klaxon.800 -> klaxon.900 (6.34 vs the new default -> 8.34). No hex edits."
+}

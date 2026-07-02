@@ -1,0 +1,100 @@
+{
+  "bg": {
+    "base": {
+      "$type": "color",
+      "$value": "{color.bronze.950}"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "{color.bronze.900}"
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "{color.neutral.850}"
+    }
+  },
+  "border": {
+    "subtle": {
+      "$type": "color",
+      "$value": "{color.bronze.800}"
+    },
+    "strong": {
+      "$type": "color",
+      "$value": "{color.bronze.700}"
+    },
+    "input": {
+      "$type": "color",
+      "$value": "{color.neutral.500}"
+    }
+  },
+  "text": {
+    "emphasis": {
+      "$type": "color",
+      "$value": "{color.neutral.50}"
+    },
+    "primary": {
+      "$type": "color",
+      "$value": "{color.neutral.100}"
+    },
+    "secondary": {
+      "$type": "color",
+      "$value": "{color.neutral.150}"
+    },
+    "muted": {
+      "$type": "color",
+      "$value": "{color.neutral.300}"
+    },
+    "disabled": {
+      "$type": "color",
+      "$value": "{color.bronze.400}"
+    }
+  },
+  "accent": {
+    "default": {
+      "$type": "color",
+      "$value": "{color.moss.300}"
+    },
+    "hover": {
+      "$type": "color",
+      "$value": "{color.moss.200}"
+    },
+    "subtle-bg": {
+      "$type": "color",
+      "$value": "{color.moss.950}"
+    },
+    "on-accent": {
+      "$type": "color",
+      "$value": "{color.bronze.950}"
+    },
+    "focus-ring": {
+      "$type": "color",
+      "$value": "{color.moss.200}"
+    }
+  },
+  "status": {
+    "success-bg": {
+      "$type": "color",
+      "$value": "{color.moss.900}"
+    },
+    "success-text": {
+      "$type": "color",
+      "$value": "{color.moss.300}"
+    },
+    "warning-bg": {
+      "$type": "color",
+      "$value": "{color.ochre.950}"
+    },
+    "warning-text": {
+      "$type": "color",
+      "$value": "{color.ochre.300}"
+    },
+    "danger-bg": {
+      "$type": "color",
+      "$value": "{color.clay.900}"
+    },
+    "danger-text": {
+      "$type": "color",
+      "$value": "{color.clay.300}"
+    }
+  }
+}

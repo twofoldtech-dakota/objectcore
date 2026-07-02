@@ -1,0 +1,528 @@
+{
+  "color": {
+    "neutral": {
+      "50": {
+        "$type": "color",
+        "$value": "#fefdfb",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#f5f3ee",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "150": {
+        "$type": "color",
+        "$value": "#edeae3",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#e6e2d9",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#d9d5cc",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#c4bfb6",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#988f85",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#847f79",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#5d5953",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#3a3835",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "850": {
+        "$type": "color",
+        "$value": "#2c2a27",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#1a1917",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#0f0e0d",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      }
+    },
+    "bronze": {
+      "50": {
+        "$type": "color",
+        "$value": "#f8f6f2",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#ede8de",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#dcd3c1",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#c6bca4",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#aea285",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#8d7d5c",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#7e6f4e",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#6d5f42",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#544930",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#3b3321",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#241f14",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      }
+    },
+    "moss": {
+      "50": {
+        "$type": "color",
+        "$value": "#f2f7ee",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#e0ead6",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#c9dbb8",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#b8d19f",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#a8c687",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#739550",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#5c793e",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#3d5329",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#2a3320",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": true
+          }
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#1f2717",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#141a0f",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      }
+    },
+    "ochre": {
+      "50": {
+        "$type": "color",
+        "$value": "#fbf5ef",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#f4e6d7",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#ead0b3",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#dcb88f",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#ca9c68",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#ba7f3b",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#9f6a2d",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#815522",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#5f3f1c",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#3d2a14",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#261a0d",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      }
+    },
+    "clay": {
+      "50": {
+        "$type": "color",
+        "$value": "#faf2f0",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#f3e1dd",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#e6c5bc",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#d6a69a",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#c58777",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#b05a45",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#974935",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#7a3929",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#592c21",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#3a1f18",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#24130f",
+        "$extensions": {
+          "ai.objectcore.derived": {
+            "source": false
+          }
+        }
+      }
+    }
+  },
+  "$description": "Inkwell color system v2.1. Derived from objectcore.ai/agents (extracted 2026-07-02). Primitives unchanged from v1; semantic layer re-cut so every documented text pairing meets WCAG AAA (SC 1.4.6, >=7:1). 'paper' = light, 'ink' = dark. v2.1 adds four wardrobe themes (study, kiln, arboretum, nocturne); every documented pairing in every theme meets AAA. v2.2 adds --border-input (>=3:1, WCAG 1.4.11) to every theme and separates lamps/selected fills from tinted canvases."
+}

@@ -9,6 +9,7 @@ export * from "./color";
 export * from "./gate";
 export * from "./roles";
 export * from "./proof";
+export * from "./presets";
 export * from "./apca";
 export * from "./judge";
 export * from "./evaluate";

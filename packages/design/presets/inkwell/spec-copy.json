@@ -1,0 +1,25 @@
+{
+  "title": "Inkwell.",
+  "kicker": "57 values · six themes · AAA throughout",
+  "tagline": "Ink on warm paper, bronze only where it matters. A color system for agentic products that would rather be trusted than noticed — measured to WCAG AAA and calm about it.",
+  "principles": [
+    {
+      "title": "Everyone else ships cold.",
+      "body": "The industry defaults to blue light on black glass. Inkwell is paper, ink and one metal — it reads senior because it is calm, and calm is scarce."
+    },
+    {
+      "title": "One metal, no neon.",
+      "body": "Bronze is the only interactive voice. If it is bronze, it clicks; if it doesn't click, it is never bronze. Scarcity is what keeps an accent premium."
+    },
+    {
+      "title": "Verdicts, not decoration.",
+      "body": "Moss, ochre and clay speak only about state — succeeded, needs a human, failed. A running process is never green. Green is a verdict, not a mood."
+    },
+    {
+      "title": "Dark is a remap, not a negative.",
+      "body": "Ink mode reassigns the same thirteen neutrals — nothing inverted, nothing invented after the fact. Both themes are first-class citizens."
+    }
+  ],
+  "rampNotes": "Five ramps, fifty-seven decisions. A dot marks a value carried verbatim from the source; every ramp is luminance-monotonic, end to end.",
+  "roleNotes": "Components speak in roles, never in hexes. Each role resolves per theme — ship the tokens and these decisions travel with them."
+}

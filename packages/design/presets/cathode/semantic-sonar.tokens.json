@@ -1,0 +1,101 @@
+{
+  "bg": {
+    "base": {
+      "$type": "color",
+      "$value": "{color.volt.950}"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "{color.volt.900}"
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "{color.graphite.850}"
+    }
+  },
+  "border": {
+    "subtle": {
+      "$type": "color",
+      "$value": "{color.volt.800}"
+    },
+    "strong": {
+      "$type": "color",
+      "$value": "{color.volt.700}"
+    },
+    "input": {
+      "$type": "color",
+      "$value": "{color.graphite.500}"
+    }
+  },
+  "text": {
+    "emphasis": {
+      "$type": "color",
+      "$value": "{color.graphite.50}"
+    },
+    "primary": {
+      "$type": "color",
+      "$value": "{color.graphite.100}"
+    },
+    "secondary": {
+      "$type": "color",
+      "$value": "{color.graphite.150}"
+    },
+    "muted": {
+      "$type": "color",
+      "$value": "{color.graphite.300}"
+    },
+    "disabled": {
+      "$type": "color",
+      "$value": "{color.volt.500}"
+    }
+  },
+  "accent": {
+    "default": {
+      "$type": "color",
+      "$value": "{color.pulse.300}"
+    },
+    "hover": {
+      "$type": "color",
+      "$value": "{color.pulse.200}"
+    },
+    "subtle-bg": {
+      "$type": "color",
+      "$value": "{color.pulse.950}"
+    },
+    "on-accent": {
+      "$type": "color",
+      "$value": "{color.volt.950}"
+    },
+    "focus-ring": {
+      "$type": "color",
+      "$value": "{color.pulse.200}"
+    }
+  },
+  "status": {
+    "success-bg": {
+      "$type": "color",
+      "$value": "{color.pulse.900}"
+    },
+    "success-text": {
+      "$type": "color",
+      "$value": "{color.pulse.100}"
+    },
+    "warning-bg": {
+      "$type": "color",
+      "$value": "{color.flare.800}"
+    },
+    "warning-text": {
+      "$type": "color",
+      "$value": "{color.flare.50}"
+    },
+    "danger-bg": {
+      "$type": "color",
+      "$value": "{color.klaxon.900}"
+    },
+    "danger-text": {
+      "$type": "color",
+      "$value": "{color.klaxon.100}"
+    }
+  },
+  "$description": "Sonar — Cyan depth, green ping — instruments below the waterline. (dark)"
+}

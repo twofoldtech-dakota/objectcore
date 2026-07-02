@@ -1,0 +1,25 @@
+{
+  "title": "Cathode.",
+  "kicker": "57 original values · nine themes · AAA at full brightness",
+  "tagline": "Phosphor on dark glass, one live wire of cyan. Where inkwell absorbs light, cathode emits it — a color system for agentic products that ship signal, and can prove it.",
+  "principles": [
+    {
+      "title": "Emission, not absorption.",
+      "body": "Inkwell is ink soaking into paper. Cathode is phosphor firing at glass. Same rigor, opposite direction — built to be noticed and still be trusted."
+    },
+    {
+      "title": "One live wire.",
+      "body": "Volt is the only interactive current. If it's cyan, it conducts; if it doesn't conduct, it is never cyan. Voltage stays precious or it stops meaning anything."
+    },
+    {
+      "title": "State is a lamp.",
+      "body": "Pulse, flare and klaxon are indicator lights — lit only when the machine has something to report. A lamp that is always on reports nothing."
+    },
+    {
+      "title": "Day is the guest.",
+      "body": "Glass is the default; daylight is the away kit. Both first-class, both measured — but this system was born after dark."
+    }
+  ],
+  "rampNotes": "Five ramps, fifty-seven live values. Every value is original — zero hexes shared with inkwell — and every ramp is luminance-monotonic, end to end.",
+  "roleNotes": "Components speak in roles, never in hexes. Each role resolves per channel — ship the tokens and these decisions travel with them."
+}
