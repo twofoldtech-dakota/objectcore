@@ -10,6 +10,7 @@ export * from "./gate";
 export * from "./roles";
 export * from "./proof";
 export * from "./presets";
+export * from "./spec";
 export * from "./apca";
 export * from "./judge";
 export * from "./evaluate";
