@@ -1,6 +1,12 @@
 {
   "expectEntry": {
-    "version": "0.0.1",
-    "keywords": ["objectcore", "meta", "marketplace", "catalog", "build"]
+    "version": "0.0.2",
+    "keywords": [
+      "objectcore",
+      "meta",
+      "marketplace",
+      "catalog",
+      "build"
+    ]
   }
 }

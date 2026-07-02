@@ -24,7 +24,7 @@
       "name": "design-forge",
       "source": "design-forge",
       "description": "ObjectCore meta-plugin: author, theme, and consume a stack-agnostic design system from a DTCG design-token source of truth — generate accessible token scales, theme them with a resolver, and keep UI on-brand by picking semantic tokens by role.",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "author": {
         "name": "twofoldtech-dakota"
       },
@@ -74,7 +74,7 @@
       "name": "kb-writer",
       "source": "kb-writer",
       "description": "Surface the project knowledge base at session start and prompt capturing durable lessons at session end — the KB's automated read/write surface.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "twofoldtech-dakota"
       },
@@ -109,7 +109,7 @@
       "name": "marketplace-builder",
       "source": "marketplace-builder",
       "description": "ObjectCore meta-plugin: governs the catalog build — derive marketplace.json from the plugin graph through the single deriveCatalog seam, validate, and keep it in sync.",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "author": {
         "name": "twofoldtech-dakota"
       },
@@ -143,7 +143,7 @@
       "name": "plugin-forge",
       "source": "plugin-forge",
       "description": "ObjectCore meta-plugin: generates new plugins and their catalog entries via the spec-driven /forge pipeline — grill the idea, plan the PluginSpec, scaffold deterministically, then pass the validation + activation gate.",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "author": {
         "name": "twofoldtech-dakota"
       },
@@ -160,7 +160,7 @@
       "name": "plugin-validator",
       "source": "plugin-validator",
       "description": "ObjectCore meta-plugin: governs plugin and marketplace correctness — the hard-rule checklist plus the validate + eval gate.",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "author": {
         "name": "twofoldtech-dakota"
       },
@@ -193,7 +193,7 @@
       "name": "reflection",
       "source": "reflection",
       "description": "The reflection loop: a PostToolUse hook that auto-invokes a self-reflection subagent on a red ObjectCore gate, diagnosing the failure and capturing durable lessons into the knowledge base.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "twofoldtech-dakota"
       },
