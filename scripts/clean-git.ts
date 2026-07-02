@@ -108,7 +108,8 @@ if (alsoGone) {
   console.log("\n[gone upstream]");
   const goneBranches = git("branch", "-vv")
     .split("\n")
-    .map((l) => l.replace(/^\*?\s+/, ""))
+    // `*` marks the current branch, `+` a branch checked out in another worktree.
+    .map((l) => l.replace(/^[*+]?\s+/, ""))
     .filter((l) => /\[[^\]]+: gone\]/.test(l))
     .map((l) => l.split(/\s+/)[0])
     .filter((b) => b && b !== TRUNK && b !== currentBranch);
