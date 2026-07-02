@@ -1,6 +1,12 @@
 {
   "expectEntry": {
-    "version": "0.0.1",
-    "keywords": ["objectcore", "meta", "generator", "scaffold", "spec-driven"]
+    "version": "0.0.2",
+    "keywords": [
+      "objectcore",
+      "meta",
+      "generator",
+      "scaffold",
+      "spec-driven"
+    ]
   }
 }
