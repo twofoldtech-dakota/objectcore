@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "query": "subagent tools array spawn bug",
+      "expectTop": "subagent-tools-comma-serialization",
+      "note": "gotcha: how an agent would describe the YAML-array spawn bug (not the title) — must beat the vocabulary-adjacent subagent-forbidden-fields."
+    },
+    {
+      "query": "hand-editing the generated index",
+      "expectTop": "index-is-a-build-artifact",
+      "note": "decision: the INDEX.md never-hand-edit / byte-match rule, phrased as the mistake being made."
+    },
+    {
+      "query": "why can't we use built-in auto-memory for the factory",
+      "expectTop": "auto-memory-not-factory-kb",
+      "note": "decision: the own-KB-vs-auto-memory choice, phrased as the question a contributor would ask."
+    },
+    {
+      "query": "adding a new agent flipped another plugin delegation routing",
+      "expectTop": "judge-pool-distractor",
+      "note": "gotcha: the catalog-distractor effect described by symptom, not by its title's 'borderline judge routing' wording."
+    },
+    {
+      "query": "structured outputs 400 minimum maximum number schema",
+      "expectTop": "structured-outputs-reject-numeric-range-keywords-minimum-maximum-on-number-types",
+      "note": "gotcha: the API-error case, anchored on the distinctive minimum/maximum-on-number failure."
+    },
+    {
+      "query": "plugin subagent permissionMode mcpServers forbidden for security",
+      "expectTop": "subagent-forbidden-fields",
+      "note": "gotcha: the forbidden-fields security rule, anchored on the distinctive permissionMode token so it beats subagent-tools-comma-serialization."
+    },
+    {
+      "query": "storage as a port swap adapters later database",
+      "expectTop": "storage-is-a-port",
+      "note": "pattern: the ports-and-adapters storage discipline, phrased by concept rather than title."
+    },
+    {
+      "query": "does the first publish of a plugin need a changeset",
+      "expectTop": "release-auto-publishes-on-merge",
+      "note": "lesson: the merge-auto-publishes rule, phrased as the decision a contributor actually faces."
+    },
+    {
+      "query": "what is the capital of france",
+      "expectTop": null,
+      "note": "negative: entirely out of domain — the retriever must stay quiet (zero hits), the 'doesn't over-fire' half."
+    },
+    {
+      "query": "best sourdough bread recipe for dinner tonight",
+      "expectTop": null,
+      "note": "negative: entirely out of domain — zero hits expected."
+    }
+  ]
+}

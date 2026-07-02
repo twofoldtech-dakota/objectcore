@@ -6,7 +6,14 @@
 
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
-import { FileKnowledgeStore, renderIndex, checkIndexBudget, checkLifecycle } from "@objectcore/knowledge";
+import {
+  FileKnowledgeStore,
+  renderIndex,
+  checkIndexBudget,
+  checkLifecycle,
+  runRetrievalCases,
+} from "@objectcore/knowledge";
+import type { RetrievalCase } from "@objectcore/knowledge";
 
 const root = join(import.meta.dir, "..");
 const kbDir = join(root, "knowledge");
@@ -50,9 +57,42 @@ if (!budget.ok) {
 // (per-entry rules are already parse-enforced by the store's list()).
 for (const e of checkLifecycle(entries)) errors.push(e);
 
+// 5) Retrieval evals (plan 013 WP3) — OFFLINE + deterministic, so they are gate-safe:
+// `searchEntries` is pure, so the same corpus + query ranks identically every run.
+// A case's `expectTop: "<id>"` must be the top-1 hit; `expectTop: null` must return
+// zero hits. An absent file is reported (kb:check stays generic), not a failure.
+let retrievalTotal = 0;
+let retrievalPassed = 0;
+try {
+  const raw = await readFile(join(kbDir, "evals", "retrieval.json"), "utf8");
+  const parsed = JSON.parse(raw.replace(/\r\n/g, "\n")) as { cases?: RetrievalCase[] };
+  const cases = parsed.cases ?? [];
+  const results = runRetrievalCases(entries, cases);
+  retrievalTotal = results.length;
+  for (const r of results) {
+    if (r.ok) {
+      retrievalPassed++;
+      continue;
+    }
+    const wantTop = r.expectTop === null ? "null" : r.expectTop;
+    const gotTop = r.actual === null ? "null" : r.actual;
+    errors.push(`retrieval eval failed: "${r.query}" expected ${wantTop}, got ${gotTop}`);
+  }
+} catch (e) {
+  if ((e as { code?: string }).code === "ENOENT") {
+    console.log("retrieval evals: none");
+  } else {
+    errors.push(`retrieval evals: ${(e as Error).message}`);
+  }
+}
+
 if (errors.length) {
   for (const e of errors) console.error(`[error] ${e}`);
   console.error("\n✗ kb:check failed.");
   process.exit(1);
 }
-console.log(`✓ kb:check: ${entries.length} entries, INDEX.md in sync and within budget.`);
+const retrievalNote =
+  retrievalTotal > 0 ? `; ${retrievalPassed}/${retrievalTotal} retrieval evals passed` : "";
+console.log(
+  `✓ kb:check: ${entries.length} entries, INDEX.md in sync and within budget${retrievalNote}.`,
+);

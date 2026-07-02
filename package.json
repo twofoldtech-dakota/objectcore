@@ -22,6 +22,7 @@
     "check:catalog": "bun run scripts/check-catalog.ts",
     "kb:add": "bun run scripts/kb-add.ts",
     "kb:curate": "bun run scripts/kb-curate.ts",
+    "kb:search": "bun run scripts/kb-search.ts",
     "kb:index": "bun run scripts/kb-index.ts",
     "kb:check": "bun run scripts/kb-check.ts",
     "kb:verify": "bun run scripts/kb-verify.ts",

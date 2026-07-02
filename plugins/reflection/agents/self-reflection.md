@@ -25,6 +25,11 @@ gate pass.
    / `forge:todo` stub), **activation** (a prompt routed to the wrong skill or fired
    when it should have stayed quiet), or **delegation** (a prompt delegated to the wrong
    subagent, or delegated when it should have stayed quiet).
+   Then **search the KB first**, before diagnosing: run
+   `bun run kb:search '<failure keywords>'` (deterministic lexical retrieval over the
+   knowledge base) and read any hit that looks applicable — the factory may already have
+   captured this exact failure, so reuse the lesson instead of rederiving it (the red-gate
+   hook may have already named the likely entries).
 2. **Diagnose the root cause.** Name the mechanism, e.g.:
    - activation misroute → the skill `description` (trigger surface) is too broad or
      overlaps a sibling — tighten the *description*, never the cases;
@@ -50,6 +55,7 @@ gate pass.
 failure:   <layer + plugin/skill/case>
 rootCause: <the mechanism, one or two sentences>
 fix:       <the minimal change + the verify command>
+applied:   <kb entry ids consulted/applied, or "none">
 lesson:    <kb entry id captured, or "none — not durable">
 ```
 
