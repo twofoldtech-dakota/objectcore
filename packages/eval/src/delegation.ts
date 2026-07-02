@@ -9,6 +9,7 @@
 
 import type { WorkspacePlugin } from "@objectcore/registry-core";
 import type { DelegationSpec, EvalResult, Judge, TriggerSurface } from "./types";
+import { routeExpecting } from "./judge";
 import {
   casesShapeProblem,
   isSpecLoadError,
@@ -37,8 +38,7 @@ export async function runPluginDelegation(
   const results: EvalResult[] = [];
   for (let i = 0; i < spec.cases.length; i++) {
     const c = spec.cases[i]!;
-    const decision = await judge.route(c.prompt, candidates);
-    const passed = decision.skill === c.expect;
+    const { decision, passed, samples, hits } = await routeExpecting(judge, c.prompt, candidates, c.expect);
     const wantLabel = c.expect ?? "(no agent)";
     const gotLabel = decision.skill ?? "(no agent)";
     results.push({
@@ -49,8 +49,8 @@ export async function runPluginDelegation(
       passed,
       confidence: decision.confidence,
       detail: passed
-        ? `delegated to ${gotLabel} as expected`
-        : `expected ${wantLabel}, judge delegated to ${gotLabel} (${decision.reason})`,
+        ? `delegated to ${gotLabel} as expected${samples > 1 ? ` (majority ${hits}/${samples} — first sample flaked)` : ""}`
+        : `expected ${wantLabel}, judge delegated to ${gotLabel} (majority of ${samples}; ${decision.reason})`,
     });
   }
   return results;

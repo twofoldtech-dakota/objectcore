@@ -6,6 +6,7 @@
 
 import type { WorkspacePlugin } from "@objectcore/registry-core";
 import type { ActivationSpec, EvalResult, Judge, TriggerSurface } from "./types";
+import { routeExpecting } from "./judge";
 import {
   casesShapeProblem,
   isSpecLoadError,
@@ -34,8 +35,7 @@ export async function runPluginActivation(
   const results: EvalResult[] = [];
   for (let i = 0; i < spec.cases.length; i++) {
     const c = spec.cases[i]!;
-    const decision = await judge.route(c.prompt, candidates);
-    const passed = decision.skill === c.expect;
+    const { decision, passed, samples, hits } = await routeExpecting(judge, c.prompt, candidates, c.expect);
     const wantLabel = c.expect ?? "(no skill)";
     const gotLabel = decision.skill ?? "(no skill)";
     results.push({
@@ -46,8 +46,8 @@ export async function runPluginActivation(
       passed,
       confidence: decision.confidence,
       detail: passed
-        ? `fired ${gotLabel} as expected`
-        : `expected ${wantLabel}, judge fired ${gotLabel} (${decision.reason})`,
+        ? `fired ${gotLabel} as expected${samples > 1 ? ` (majority ${hits}/${samples} — first sample flaked)` : ""}`
+        : `expected ${wantLabel}, judge fired ${gotLabel} (majority of ${samples}; ${decision.reason})`,
     });
   }
   return results;

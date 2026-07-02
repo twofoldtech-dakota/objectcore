@@ -52,6 +52,43 @@ export class MockJudge implements Judge {
   }
 }
 
+/** One routing verdict scored against an expectation, with flake absorption.
+ *  A clean first sample decides alone (the common path — zero extra calls). A
+ *  MISS triggers re-judging, and the majority of up to `1 + retries` samples
+ *  decides. Even at temperature 0 the API has run-to-run variance, and this gate
+ *  runs on every push — a single flaked sample must not redden it ("fragile red",
+ *  the sibling of the near-miss "fragile green"). A genuinely wrong surface still
+ *  loses its majority and stays red. */
+export async function routeExpecting(
+  judge: Judge,
+  prompt: string,
+  candidates: TriggerSurface[],
+  expect: string | null,
+  retries = 2,
+): Promise<{ decision: RouteDecision; passed: boolean; samples: number; hits: number }> {
+  const maxSamples = 1 + retries;
+  const needed = Math.floor(maxSamples / 2) + 1;
+  let hits = 0;
+  let misses = 0;
+  let samples = 0;
+  let lastHit: RouteDecision | null = null;
+  let lastMiss: RouteDecision | null = null;
+  while (samples < maxSamples && hits < needed && misses < needed) {
+    const d = await judge.route(prompt, candidates);
+    samples++;
+    if (d.skill === expect) {
+      hits++;
+      lastHit = d;
+      if (samples === 1) break; // clean first sample — don't spend more
+    } else {
+      misses++;
+      lastMiss = d;
+    }
+  }
+  const passed = hits > misses;
+  return { decision: (passed ? lastHit : lastMiss)!, passed, samples, hits };
+}
+
 const ROUTE_SCHEMA = {
   type: "object",
   properties: {
