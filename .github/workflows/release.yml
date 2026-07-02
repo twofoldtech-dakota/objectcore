@@ -75,14 +75,22 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
-      # actions/checkout persists an Authorization extraheader in git config;
-      # create-pull-request configures its own. Both get sent -> GitHub rejects the
-      # request with `400: Duplicate header "Authorization"`. Drop the persisted one —
-      # safe here because the version leg and the tag-pushing publish leg are mutually
-      # exclusive (steps.detect), so nothing after this step needs checkout's credential.
+      # checkout@v7 persists its token as an http.extraheader inside an EXTERNAL config
+      # file wired in via includeIf.gitdir — a value a plain `--local --unset-all
+      # http....extraheader` cannot reach (that was the first, failed fix). At request
+      # time git resolves BOTH that included header and the one create-pull-request
+      # configures, sends two Authorization headers, and GitHub rejects the request
+      # (400 `Duplicate header: "Authorization"`). Strip the includeIf wiring — safe
+      # here because the version leg and the tag-pushing publish leg are mutually
+      # exclusive (steps.detect), so nothing after this step uses checkout's credential.
       - name: Drop checkout's persisted credential (avoid duplicate Authorization header)
         if: steps.detect.outputs.count != '0'
-        run: git config --local --unset-all http.https://github.com/.extraheader || true
+        run: |
+          (git config --local --name-only --get-regexp '^includeIf\.' || true) | sort -u | \
+            while read -r key; do git config --local --unset-all "$key"; done
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          echo "remaining extraheader values (want: none):"
+          git config --get-all http.https://github.com/.extraheader || true
 
       # RELEASE_PAT (a fine-grained PAT or GitHub App token with contents +
       # pull-requests write) makes ci.yml actually run on the Version PR — refs created
