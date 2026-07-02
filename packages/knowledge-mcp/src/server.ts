@@ -9,25 +9,41 @@
 // lives out here at the edge, so a transport/protocol dependency never leaks into the
 // pure knowledge package (plan 013 WP7).
 //
-// Surface (v1): two resources + two tools.
+// Surface: two resources + up to three tools.
 //   - kb://index            — a FRESH renderIndex over ACTIVE entries (never the
 //                             on-disk INDEX.md, so it can't serve a stale snapshot).
 //   - kb://entries/{id}     — one entry's file form (serializeEntry); archived
 //                             entries are listed too, marked in their description.
 //   - kb_search             — deterministic lexical retrieval (WP3 searchEntries).
-//   - kb_add                — a write through store.append (collision + round-trip
-//                             guards inherited from the store; failures surface as
-//                             MCP tool errors, never a crash).
-// Extension points for the parallel WPs are marked inline (WP4 dedup in kb_add,
-// WP5 kb_cite tool) — v1 deliberately ships without them.
+//   - kb_add                — a write through store.append. WP4 near-duplicate refusal
+//                             runs FIRST (matches named; `force: true` overrides); the
+//                             store's collision + round-trip guards then apply — every
+//                             failure surfaces as an MCP tool error, never a crash.
+//   - kb_cite               — record a citation to the usage log (WP5). SINK-GATED:
+//                             registered ONLY when `opts.usageLogPath` is provided (the
+//                             registry `events`-route posture — absent = the tool does
+//                             not exist).
+// The WP4 dedup + WP5 kb_cite integrations (plan 013 WP7 follow-up) mirror the
+// scripts/kb-add.ts / scripts/kb-cite.ts CLI edges exactly (same DUP_THRESHOLD default,
+// active-only pool, and append mechanics).
 
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { renderIndex, serializeEntry, isActive, searchEntries } from "@objectcore/knowledge";
+import {
+  renderIndex,
+  serializeEntry,
+  isActive,
+  searchEntries,
+  findNearDuplicates,
+  serializeUsageEvent,
+} from "@objectcore/knowledge";
 import type {
   KnowledgeStore,
   KnowledgeEntryInput,
   SearchOptions,
+  UsageEvent,
 } from "@objectcore/knowledge";
 
 export interface KnowledgeMcpOptions {
@@ -35,6 +51,10 @@ export interface KnowledgeMcpOptions {
   name?: string;
   /** Server version advertised in the MCP handshake. Default: "0.0.1". */
   version?: string;
+  /** Path (absolute or cwd-relative) to the append-only usage log
+   *  (metrics/kb-usage.jsonl). When provided, the `kb_cite` tool is registered
+   *  (SINK-GATED — absent = no citation tool, the registry `events`-route posture). */
+  usageLogPath?: string;
 }
 
 // The four entry types + two origins, as zod-enum tuples. Spelled out (not derived
@@ -158,17 +178,19 @@ export function createKnowledgeServer(
   // etc. is rejected BEFORE anything touches disk). Every store failure surfaces as an
   // MCP tool error (isError: true) carrying the store's message, never a thrown crash.
   //
-  // WP4 EXTENSION POINT (plan 013): once `feat/kb-dedup` merges, run findNearDuplicates
-  // over the active corpus here and refuse a near-duplicate (listing matches) unless a
-  // new `force: true` input arg overrides — mirroring the kb:add/kb:curate CLI edges.
+  // WP4 dedup (plan 013): findNearDuplicates over the ACTIVE corpus runs FIRST and
+  // refuses a near-duplicate (matches named) unless `force: true` overrides — mirroring
+  // scripts/kb-add.ts exactly (same DUP_THRESHOLD default, active-only pool). The refusal
+  // is enforced HERE at the edge; the store stays a pure storage seam.
   server.registerTool(
     "kb_add",
     {
       title: "Add a knowledge entry",
       description:
         "Append a new knowledge entry (lesson | pattern | gotcha | decision) through " +
-        "the store. Returns { id } on success; store failures (id collision, kebab " +
-        "violation, frontmatter-breaking values) are returned as tool errors.",
+        "the store. Returns { id } on success. A near-duplicate of an existing active " +
+        "entry is refused (pass force: true to override); store failures (id collision, " +
+        "kebab violation, frontmatter-breaking values) are returned as tool errors.",
       inputSchema: {
         type: z.enum(ENTRY_TYPE_VALUES),
         title: z.string().min(1),
@@ -177,9 +199,31 @@ export function createKnowledgeServer(
         source: z.string().optional(),
         links: z.array(z.string()).optional(),
         origin: z.enum(ENTRY_ORIGIN_VALUES).optional(),
+        force: z.boolean().optional(),
       },
     },
-    async ({ type, title, body, tags, source, links, origin }) => {
+    async ({ type, title, body, tags, source, links, origin, force }) => {
+      // WP4 write-time dedup: refuse a near-duplicate of an ACTIVE entry unless forced.
+      if (!force) {
+        const active = (await store.list()).filter(isActive);
+        const dups = findNearDuplicates({ title, tags, body }, active);
+        if (dups.length) {
+          const matches = dups
+            .map((d) => `${d.id} (score ${d.score.toFixed(2)})`)
+            .join("\n  ");
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  `near-duplicate of an existing active entry:\n  ${matches}\n` +
+                  "update or supersede it (bun run kb:curate), or retry with force: true",
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
       const input: KnowledgeEntryInput = { type, title, body };
       if (tags) input.tags = tags;
       if (source !== undefined) input.source = source;
@@ -194,9 +238,68 @@ export function createKnowledgeServer(
     },
   );
 
-  // WP5 EXTENSION POINT (plan 013): once `feat/kb-usage` merges, register a `kb_cite`
-  // tool here — sink-gated on an `opts.usageLogPath` (the registry `events`-route
-  // posture: absent unless the sink is injected) that appends to metrics/kb-usage.jsonl.
+  // --- Tool: kb_cite (WP5) — SINK-GATED ---------------------------------------------
+  // Registered ONLY when opts.usageLogPath is provided (the registry `events`-route
+  // posture: absent unless the sink is injected). Records ONE citation to the append-only
+  // usage log; the append mechanics mirror scripts/kb-cite.ts (read-first, missing-
+  // trailing-newline guard, create-if-absent). The id must resolve via store.get (unknown
+  // → tool error); citing a since-archived entry still appends (history is history) but
+  // the result text carries a warning.
+  if (opts.usageLogPath !== undefined) {
+    const usageLogPath = opts.usageLogPath;
+    server.registerTool(
+      "kb_cite",
+      {
+        title: "Cite a knowledge entry",
+        description:
+          "Record a citation of a knowledge entry to the append-only usage log " +
+          "(metrics/kb-usage.jsonl) — the KB's usage/ROI signal. The id must resolve " +
+          "(unknown → tool error); citing an archived (superseded/deprecated) entry still " +
+          "appends, with a warning in the result.",
+        inputSchema: {
+          id: z.string().min(1),
+          source: z.string().optional(),
+        },
+      },
+      async ({ id, source }) => {
+        // The id must resolve — a corrupt entry throws (labeled), a missing entry is null.
+        let entry;
+        try {
+          entry = await store.get(id);
+        } catch (e) {
+          return { content: [{ type: "text", text: (e as Error).message }], isError: true };
+        }
+        if (!entry) {
+          return {
+            content: [{ type: "text", text: `unknown knowledge entry "${id}"` }],
+            isError: true,
+          };
+        }
+        // Normalize an empty/whitespace source to "no source" (kb:cite's `|| undefined`).
+        const src = source && source.trim() ? source : undefined;
+        const event: UsageEvent = src
+          ? { citedAt: new Date().toISOString(), id, source: src }
+          : { citedAt: new Date().toISOString(), id };
+
+        // Append one line — mirror scripts/kb-cite.ts: read the existing file, guard a
+        // missing trailing newline, create the file (and its dir) if absent.
+        mkdirSync(dirname(usageLogPath), { recursive: true });
+        const prefix = existsSync(usageLogPath) ? readFileSync(usageLogPath, "utf8") : "";
+        const sep = prefix.length && !prefix.endsWith("\n") ? "\n" : "";
+        writeFileSync(usageLogPath, prefix + sep + serializeUsageEvent(event) + "\n", "utf8");
+
+        const warning = isActive(entry) ? "" : ` (warning: entry is ${entry.status})`;
+        return {
+          content: [
+            {
+              type: "text",
+              text: `cited "${id}"${src ? ` (source: ${src})` : ""}${warning}`,
+            },
+          ],
+        };
+      },
+    );
+  }
 
   return server;
 }
