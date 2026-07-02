@@ -109,6 +109,7 @@ const token = await mintOidcToken(audience);
 if (!token) skip("no OIDC token available (not in GitHub Actions and OBJECTCORE_OIDC_TOKEN unset)");
 
 let ok = 0;
+let skipped = 0;
 let failed = 0;
 for (const p of versioned) {
   const req = await buildRequest(p);
@@ -120,11 +121,19 @@ for (const p of versioned) {
   if (res.ok) {
     ok++;
     console.log(`✓ published ${req.manifest.name}@${req.version}`);
+  } else if (res.status === 409) {
+    // The store's first-write-wins guard: this (name, version) is already published
+    // and immutable (e.g. a legacy row pinned at a pre-tag-resolution HEAD sha).
+    // The server refusing to rewrite it is the doctrine working — for the publisher
+    // that makes re-publishing idempotent, not an error. True content drift never
+    // reaches this loop: release-publish's drift guard fails the run first.
+    skipped++;
+    console.log(`• ${req.manifest.name}@${req.version}: already published (immutable) — skipped`);
   } else {
     failed++;
     console.error(`✗ ${req.manifest.name}@${req.version}: ${res.status} ${await res.text()}`);
   }
 }
 
-console.log(`\nregistry:publish -> ${ok} published, ${failed} failed (${base})`);
+console.log(`\nregistry:publish -> ${ok} published, ${skipped} already-published (skipped), ${failed} failed (${base})`);
 if (failed) process.exit(1);
