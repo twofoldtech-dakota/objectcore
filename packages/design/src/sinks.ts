@@ -10,6 +10,8 @@
 
 import type { DesignSystemOutput, DerivedTheme } from "./derive";
 import type { ResolvedToken, TokenType } from "./tokens";
+import type { ProofOptions } from "./proof";
+import { proveContrast } from "./proof";
 
 export interface SinkFile {
   path: string;
@@ -156,6 +158,20 @@ export class JsonSink implements TokenSink {
       path: `${theme.name}.tokens.json`,
       content: JSON.stringify(Object.fromEntries(theme.tokens.map((t) => [t.path, t.value])), null, 2) + "\n",
     }));
+  }
+}
+
+/** Emits `contrast-proof.json`: every measured contract pair (`proveContrast`) —
+ *  the "measured, not promised" build artifact. The spec page's proof table and
+ *  this file are views of the SAME gate math, never a second computation. */
+export class ProofSink implements TokenSink {
+  constructor(
+    private readonly opts: ProofOptions,
+    private readonly fileName = "contrast-proof.json",
+  ) {}
+
+  emit(output: DesignSystemOutput): SinkFile[] {
+    return [{ path: this.fileName, content: JSON.stringify(proveContrast(output, this.opts), null, 2) + "\n" }];
   }
 }
 
