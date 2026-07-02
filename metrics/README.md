@@ -37,3 +37,28 @@ commits the appended line back. It is **inert until armed** — like `deploy.yml
 and variables → Actions → **Variables**). Until then the job is a harmless skip. Note: if
 `main` is a protected branch, allow the Actions bot to push (or the auto-commit will fail);
 the commit uses `[skip ci]` and the trigger ignores `metrics/**`, so it can't loop.
+
+## `kb-usage.jsonl`
+
+The knowledge base's usage / ROI signal — an append-only, git-**tracked** citation log,
+the same mechanics as `eval-history.jsonl` (union-merge-friendly, durable, timestamped;
+chosen over frontmatter counters, which churn entry files per citation, breed merge
+conflicts, and carry no timestamps). One JSON object per line, each a recorded citation
+(a `UsageEvent`, stable key order `citedAt, id, source?`):
+
+```json
+{"citedAt":"<ISO instant>","id":"<entry-id>","source":"<optional ref>"}
+```
+
+- **`bun run kb:cite <id> [--source "<ref>"]`** — validate the id resolves (citing a
+  ghost is a bug), then append one line (stamping `citedAt`). The file is born on first
+  cite; it is never committed empty.
+- **`bun run kb:stats [--json] [--fast]`** — join every entry × its citations × its WP2
+  staleness and rank ACTIVE prune candidates worst-first (stale → never-cited → oldest
+  anchor). `--fast` skips the git subprocesses (the freshness column then shows `-`).
+
+The pure parse/serialize/aggregate logic is `@objectcore/knowledge` `usage.ts`; the file
+is written ONLY by `kb:cite` and read ONLY by `kb:stats`. The eval linkage is prose-level:
+after a lesson-driven fix lands, `bun run eval:record --note "lesson:<id>"`, and `kb:stats`
+surfaces those refs by reading `eval-history.jsonl` as a plain file — it never touches
+`@objectcore/eval`.

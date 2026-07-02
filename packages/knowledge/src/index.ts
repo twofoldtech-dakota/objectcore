@@ -6,4 +6,5 @@ export { checkLifecycle } from "./lifecycle";
 export { parseSourceRefs, assessStaleness, type Freshness, type SourceRef, type PathEvidence, type StalenessAssessment } from "./staleness";
 export { tokenize, searchEntries, runRetrievalCases, type SearchOptions, type SearchHit, type RetrievalCase, type RetrievalCaseResult } from "./search";
 export { findNearDuplicates, DUP_THRESHOLD, type DuplicateMatch } from "./dedup";
+export { parseUsageLog, serializeUsageEvent, aggregateUsage, type UsageEvent, type UsageStats } from "./usage";
 export { FileKnowledgeStore } from "./file-store";
