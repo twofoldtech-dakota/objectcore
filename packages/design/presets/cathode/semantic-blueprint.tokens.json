@@ -1,0 +1,101 @@
+{
+  "bg": {
+    "base": {
+      "$type": "color",
+      "$value": "{color.volt.50}"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "{color.volt.100}"
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "{color.volt.200}"
+    }
+  },
+  "border": {
+    "subtle": {
+      "$type": "color",
+      "$value": "{color.volt.200}"
+    },
+    "strong": {
+      "$type": "color",
+      "$value": "{color.volt.300}"
+    },
+    "input": {
+      "$type": "color",
+      "$value": "{color.graphite.600}"
+    }
+  },
+  "text": {
+    "emphasis": {
+      "$type": "color",
+      "$value": "{color.graphite.950}"
+    },
+    "primary": {
+      "$type": "color",
+      "$value": "{color.graphite.900}"
+    },
+    "secondary": {
+      "$type": "color",
+      "$value": "{color.graphite.850}"
+    },
+    "muted": {
+      "$type": "color",
+      "$value": "{color.graphite.800}"
+    },
+    "disabled": {
+      "$type": "color",
+      "$value": "{color.volt.400}"
+    }
+  },
+  "accent": {
+    "default": {
+      "$type": "color",
+      "$value": "{color.volt.900}"
+    },
+    "hover": {
+      "$type": "color",
+      "$value": "{color.volt.950}"
+    },
+    "subtle-bg": {
+      "$type": "color",
+      "$value": "{color.volt.200}"
+    },
+    "on-accent": {
+      "$type": "color",
+      "$value": "{color.volt.50}"
+    },
+    "focus-ring": {
+      "$type": "color",
+      "$value": "{color.volt.900}"
+    }
+  },
+  "status": {
+    "success-bg": {
+      "$type": "color",
+      "$value": "{color.pulse.200}"
+    },
+    "success-text": {
+      "$type": "color",
+      "$value": "{color.pulse.900}"
+    },
+    "warning-bg": {
+      "$type": "color",
+      "$value": "{color.flare.200}"
+    },
+    "warning-text": {
+      "$type": "color",
+      "$value": "{color.flare.900}"
+    },
+    "danger-bg": {
+      "$type": "color",
+      "$value": "{color.klaxon.100}"
+    },
+    "danger-text": {
+      "$type": "color",
+      "$value": "{color.klaxon.900}"
+    }
+  },
+  "$description": "Blueprint — Cyan-washed drafting paper, deep azure lines. (light)"
+}

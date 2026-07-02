@@ -1,0 +1,37 @@
+{
+  "name": "inkwell",
+  "version": "2.2.0",
+  "description": "Quiet, editorial, warm paper — ink and one bronze metal, measured to WCAG AAA. Six themes: the paper/ink pair plus four wardrobe rooms (study, kiln, arboretum, nocturne).",
+  "level": "AAA",
+  "themes": [
+    { "name": "paper", "appearance": "light", "default": true, "description": "Ink on warm paper, bronze where it matters — the base." },
+    { "name": "ink", "appearance": "dark", "default": true, "description": "Dark is a remap, not a negative — the same thirteen neutrals, reassigned." },
+    { "name": "study", "appearance": "dark", "description": "A dark library — umber walls, sage as the reading lamp." },
+    { "name": "kiln", "appearance": "light", "description": "Blush clay paper, oxblood actions — gallery light." },
+    { "name": "arboretum", "appearance": "light", "description": "Moss-filtered daylight, warm paper cards, deep green actions." },
+    { "name": "nocturne", "appearance": "dark", "description": "Soot and terracotta shadow, amber lamplight — the late shift." }
+  ],
+  "brief": {
+    "name": "inkwell",
+    "adjectives": ["quiet", "editorial", "warm", "calm", "senior"],
+    "intent": "Ink on warm paper, bronze only where it matters — a color system for agentic products that would rather be trusted than noticed, measured to WCAG AAA and calm about it."
+  },
+  "cases": [
+    {
+      "question": "Does this system read as quiet, editorial ink on warm paper?",
+      "expect": "pass",
+      "note": "the hero claim — paper, ink and one metal"
+    },
+    {
+      "question": "Is the accent scarce — one interactive voice rather than competing vivid hues?",
+      "expect": "pass",
+      "note": "one metal, no neon: bronze is the only thing that clicks"
+    },
+    {
+      "question": "Does this system read as loud, neon, or cold blue-light-on-black-glass?",
+      "expect": "fail",
+      "note": "the industry default inkwell rejects (that is cathode's territory)"
+    }
+  ],
+  "source": "Converted one-shot from the Inkwell POC (inkwell.tokens.json v2.2, design-system-poc, extracted 2026-07-02): `inkwell.` namespace stripped, refs rewritten {inkwell.color.*} -> {color.*}, semantic.<theme> split into semantic-<theme>.tokens.json and semantic.solid into semantic-shared.tokens.json; per-token $type and $extensions kept verbatim; primitives untouched. AAA re-points (one step deeper on the same ramp) against the full plan-014 contract matrix: ink accent.subtle-bg bronze.900 -> bronze.950 (accent.default pair 6.62 -> 8.69); nocturne accent.subtle-bg clay.800 -> clay.900 (6.25 -> 8.13). No hex edits."
+}

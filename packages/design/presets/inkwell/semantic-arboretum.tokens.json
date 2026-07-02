@@ -1,0 +1,100 @@
+{
+  "bg": {
+    "base": {
+      "$type": "color",
+      "$value": "{color.moss.50}"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "{color.moss.100}"
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "{color.moss.200}"
+    }
+  },
+  "border": {
+    "subtle": {
+      "$type": "color",
+      "$value": "{color.moss.200}"
+    },
+    "strong": {
+      "$type": "color",
+      "$value": "{color.neutral.400}"
+    },
+    "input": {
+      "$type": "color",
+      "$value": "{color.neutral.600}"
+    }
+  },
+  "text": {
+    "emphasis": {
+      "$type": "color",
+      "$value": "{color.neutral.950}"
+    },
+    "primary": {
+      "$type": "color",
+      "$value": "{color.neutral.900}"
+    },
+    "secondary": {
+      "$type": "color",
+      "$value": "{color.neutral.850}"
+    },
+    "muted": {
+      "$type": "color",
+      "$value": "{color.neutral.800}"
+    },
+    "disabled": {
+      "$type": "color",
+      "$value": "{color.moss.400}"
+    }
+  },
+  "accent": {
+    "default": {
+      "$type": "color",
+      "$value": "{color.moss.800}"
+    },
+    "hover": {
+      "$type": "color",
+      "$value": "{color.moss.900}"
+    },
+    "subtle-bg": {
+      "$type": "color",
+      "$value": "{color.moss.300}"
+    },
+    "on-accent": {
+      "$type": "color",
+      "$value": "{color.moss.50}"
+    },
+    "focus-ring": {
+      "$type": "color",
+      "$value": "{color.moss.800}"
+    }
+  },
+  "status": {
+    "success-bg": {
+      "$type": "color",
+      "$value": "{color.moss.200}"
+    },
+    "success-text": {
+      "$type": "color",
+      "$value": "{color.moss.800}"
+    },
+    "warning-bg": {
+      "$type": "color",
+      "$value": "{color.ochre.200}"
+    },
+    "warning-text": {
+      "$type": "color",
+      "$value": "{color.ochre.900}"
+    },
+    "danger-bg": {
+      "$type": "color",
+      "$value": "{color.clay.200}"
+    },
+    "danger-text": {
+      "$type": "color",
+      "$value": "{color.clay.800}"
+    }
+  }
+}

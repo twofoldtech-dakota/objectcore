@@ -1,0 +1,243 @@
+{
+  "color": {
+    "graphite": {
+      "50": {
+        "$type": "color",
+        "$value": "#fbfcfe"
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#f0f1f5"
+      },
+      "150": {
+        "$type": "color",
+        "$value": "#e4e7ec"
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#dcdfe5"
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#ced2d9"
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#b6bac3"
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#868b98"
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#777c88"
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#53575f"
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#34363d"
+      },
+      "850": {
+        "$type": "color",
+        "$value": "#25272d"
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#16181d"
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#0b0c0f"
+      }
+    },
+    "volt": {
+      "50": {
+        "$type": "color",
+        "$value": "#edf7fc"
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#d4ebf7"
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#afd8ef"
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#87c3e3"
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#54aede"
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#1a91d1"
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#1080bc"
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#0a6ea3"
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#09537b"
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#093953"
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#082230"
+      }
+    },
+    "pulse": {
+      "50": {
+        "$type": "color",
+        "$value": "#effbf5"
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#d7f4e6"
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#b5e8d0"
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#90dab8"
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#61d19d"
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#29c27a"
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#1fad6b"
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#18955b"
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#156f45"
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#124930"
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#0d2b1d"
+      }
+    },
+    "flare": {
+      "50": {
+        "$type": "color",
+        "$value": "#fdf5ec"
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#fae6d1"
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#f5cfa8"
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#efb57b"
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#eb9947"
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#d97512"
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#c0660c"
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#a55709"
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#7b4209"
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#532e09"
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#301c08"
+      }
+    },
+    "klaxon": {
+      "50": {
+        "$type": "color",
+        "$value": "#fceef0"
+      },
+      "100": {
+        "$type": "color",
+        "$value": "#f6d5da"
+      },
+      "200": {
+        "$type": "color",
+        "$value": "#ecb1ba"
+      },
+      "300": {
+        "$type": "color",
+        "$value": "#de8c98"
+      },
+      "400": {
+        "$type": "color",
+        "$value": "#d65c6e"
+      },
+      "500": {
+        "$type": "color",
+        "$value": "#c5263d"
+      },
+      "600": {
+        "$type": "color",
+        "$value": "#af1d33"
+      },
+      "700": {
+        "$type": "color",
+        "$value": "#97172a"
+      },
+      "800": {
+        "$type": "color",
+        "$value": "#711422"
+      },
+      "900": {
+        "$type": "color",
+        "$value": "#4a111a"
+      },
+      "950": {
+        "$type": "color",
+        "$value": "#2b0d11"
+      }
+    }
+  },
+  "$description": "Cathode v1.2 — designed as Inkwell's opposite number: emission, not absorption. 57 original values, zero shared hexes. Every documented pairing meets WCAG AAA (>=7:1): 31 base + 91 channel claims across seven channels. 'glass' = dark default, 'daylight' = light."
+}

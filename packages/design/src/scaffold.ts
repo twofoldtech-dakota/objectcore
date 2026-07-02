@@ -3,12 +3,13 @@
 // ACCESSIBLE-BY-CONSTRUCTION DTCG token SSOT: a Radix-style 12-step role-mapped color
 // scale per family (steps 1-2 app bg, 3-5 component bg, 6-8 borders, 9-10 solid, 11-12
 // text), with the TEXT steps' lightness SOLVED so they meet WCAG contrast on EVERY
-// canvas-class bg step the semantic set aliases (worst case: the step-3 surface — the
-// "reverse" idea from the research, simplified to an L-search), plus a type
+// canvas-class bg step the semantic set aliases (worst case: the step-3 raised surface
+// — the "reverse" idea from the research, simplified to an L-search), plus a type
 // scale from the ratio, a spacing ladder from the base unit, an M3 motion ladder, fonts,
-// radii, semantic aliases, and a light/dark resolver. Like forge's scaffold it is a
-// SKELETON to refine — but it self-gates against P2, so a fresh scaffold is already
-// valid + accessible. Pure; never throws.
+// radii, the FULL semantic role contract (roles.ts — the roles the scale cannot
+// guarantee by aliasing alone are solved per appearance), and a light/dark resolver.
+// Like forge's scaffold it is a SKELETON to refine — but it self-gates against the
+// contract at AA, so a fresh scaffold is already valid + accessible. Pure; never throws.
 
 import type { ColorValue } from "./tokens";
 import type { DesignSystemSource, ThemeSpec } from "./derive";
@@ -18,6 +19,8 @@ import type { TokenIssue } from "./schema";
 import { validateTokens } from "./schema";
 import { contrastRatio } from "./color";
 import { checkContrast, checkTypeScale, checkSpacingGrid, M3_EASINGS } from "./gate";
+import { contractPairs } from "./roles";
+import type { SystemManifest } from "./sources";
 import type { DesignBrief } from "./judge";
 import type { DesignEvalSpec } from "./evaluate";
 
@@ -49,6 +52,8 @@ export interface ScaffoldSpec {
 export interface ScaffoldResult {
   source: DesignSystemSource;
   evalSpec: DesignEvalSpec;
+  /** The `system.json` to write alongside the sets (what the system is gated to). */
+  manifest?: SystemManifest;
   /** Self-gate issues — empty for a well-formed brief (the scaffold is accessible by construction). */
   issues: TokenIssue[];
 }
@@ -65,23 +70,42 @@ const DARK_L = [0.17, 0.21, 0.255, 0.29, 0.33, 0.38, 0.45, 0.53, 0.62, 0.67];
 // Chroma as a fraction of the family chroma, per step (muted at the ends, vivid mid).
 const CFRAC = [0.03, 0.06, 0.12, 0.18, 0.24, 0.3, 0.4, 0.6, 1.0, 0.95, 0.85, 0.7];
 
-/** Find a text lightness that meets `target` contrast on `bg` (darker for light mode,
- *  lighter for dark mode) — the simplified reverse-contrast construction. */
-function solveTextL(bg: ColorValue, hue: number, chroma: number, appearance: "light" | "dark", target: number): number {
-  const at = (L: number) => contrastRatio(oklch(L, chroma, hue), bg) ?? 0;
+/** Find a lightness at which the candidate meets EVERY constraint's contrast target
+ *  against its paired color (darker for light mode, lighter for dark — the same
+ *  monotone L-search as the text solve, generalized). WCAG contrast is SYMMETRIC, so
+ *  one constraint form covers both directions: the candidate sitting ON a bg
+ *  (accent.default vs the surfaces) and text sitting on the CANDIDATE
+ *  (accent.on-accent on the solid) — every constraint tightens in the same direction,
+ *  so the first passing L satisfies all of them. */
+function solveRoleL(
+  constraints: Array<{ against: ColorValue; target: number }>,
+  hue: number,
+  chroma: number,
+  appearance: "light" | "dark",
+): number {
+  const ok = (L: number) => {
+    const c = oklch(L, chroma, hue);
+    return constraints.every((k) => (contrastRatio(c, k.against) ?? 0) >= k.target);
+  };
   if (appearance === "light") {
-    for (let L = 0.65; L >= 0.05; L -= 0.01) if (at(L) >= target) return r(L, 3);
+    for (let L = 0.65; L >= 0.05; L -= 0.01) if (ok(L)) return r(L, 3);
     return 0.15;
   }
-  for (let L = 0.55; L <= 0.99; L += 0.01) if (at(L) >= target) return r(L, 3);
+  for (let L = 0.55; L <= 0.99; L += 0.01) if (ok(L)) return r(L, 3);
   return 0.95;
 }
 
+/** Find a text lightness that meets `target` contrast on `bg` (darker for light mode,
+ *  lighter for dark mode) — the simplified reverse-contrast construction; the
+ *  single-constraint case of `solveRoleL`. */
+const solveTextL = (bg: ColorValue, hue: number, chroma: number, appearance: "light" | "dark", target: number): number =>
+  solveRoleL([{ against: bg, target }], hue, chroma, appearance);
+
 /** A 12-step OKLCH scale for one appearance, with accessible text steps (11→AA, 12→AAA).
  *  Text is solved against `textBg` — the WORST-CASE bg the text will actually sit on.
- *  The semantic set aliases bg.canvas/bg.subtle/bg.surface to steps 1-3, and step 3 is
+ *  The semantic set aliases bg.base/bg.surface/bg.raised to steps 1-3, and step 3 is
  *  the binding constraint in BOTH appearances (darkest bg in light mode, lightest in
- *  dark), so solving there makes the canvas/subtle pairs pass by construction. */
+ *  dark), so solving there makes the base/surface pairs pass by construction. */
 function generateScale(hue: number, chroma: number, appearance: "light" | "dark", textBg?: ColorValue): ColorValue[] {
   const ramp = appearance === "light" ? LIGHT_L : DARK_L;
   const steps: ColorValue[] = ramp.map((L, i) => oklch(L, chroma * CFRAC[i]!, hue));
@@ -101,6 +125,11 @@ const TYPE_STEPS: Array<[string, number]> = [
 ];
 const SPACE_MULT = [0, 1, 2, 3, 4, 6, 8, 12, 16, 24];
 
+// The color-family names that opt a spec into the status./solid. contract roles —
+// a family gets them only when the brief actually names it (presence-gated, like the
+// contract pairs themselves). Contract order, so emission is deterministic.
+const STATUS_FAMILIES = ["success", "warning", "danger"] as const;
+
 /** Expand a brief into a full, self-gated DTCG token SSOT. Pure. */
 export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
   if (spec.colors.length === 0) {
@@ -118,22 +147,28 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
     : [{ name: "neutral", hue: neutralHue, chroma: 0.004 }, ...spec.colors];
 
   // ── primitives ──
-  // The semantic text tokens (text.* AND accent.text) all sit on the NEUTRAL surfaces
-  // (bg.canvas/subtle/surface = neutral steps 1-3), so every family's text steps are
-  // solved against the neutral worst-case bg (step 3) — not the family's own scale.
+  // The semantic text tokens (text.* and the status text steps) all sit on the NEUTRAL
+  // surfaces (bg.base/surface/raised = neutral steps 1-3), so every family's text steps
+  // are solved against the neutral worst-case bg (step 3) — not the family's own scale.
+  const famChroma = (f: ScaffoldColor): number => f.chroma ?? (f.name === "neutral" ? 0.004 : 0.15);
   const neutral = families.find((f) => f.name === "neutral")!;
-  const neutralCh = neutral.chroma ?? 0.004;
+  const neutralCh = famChroma(neutral);
   const textBg = {
     light: generateScale(neutral.hue, neutralCh, "light")[2]!,
     dark: generateScale(neutral.hue, neutralCh, "dark")[2]!,
   };
-  const color: Record<string, unknown> = { $type: "color" };
+  // Raw scales are kept (not just the alias tree) — the semantic solves below need
+  // the concrete step values to constrain against.
+  const scales = new Map<string, { light: ColorValue[]; dark: ColorValue[] }>();
   for (const f of families) {
-    const ch = f.name === "neutral" ? (f.chroma ?? 0.004) : (f.chroma ?? 0.15);
-    color[f.name] = {
-      light: stepsToGroup(generateScale(f.hue, ch, "light", textBg.light)),
-      dark: stepsToGroup(generateScale(f.hue, ch, "dark", textBg.dark)),
-    };
+    scales.set(f.name, {
+      light: generateScale(f.hue, famChroma(f), "light", textBg.light),
+      dark: generateScale(f.hue, famChroma(f), "dark", textBg.dark),
+    });
+  }
+  const color: Record<string, unknown> = { $type: "color" };
+  for (const [name, scale] of scales) {
+    color[name] = { light: stepsToGroup(scale.light), dark: stepsToGroup(scale.dark) };
   }
 
   // Font sizes in rem (relative to a 16px root) at 3-decimal precision — keeps the
@@ -181,13 +216,86 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
     },
   };
 
-  // ── semantic (one set per appearance) ──
-  const semantic = (app: "light" | "dark"): Record<string, unknown> => ({
-    bg: { $type: "color", canvas: { $value: `{color.neutral.${app}.1}` }, subtle: { $value: `{color.neutral.${app}.2}` }, surface: { $value: `{color.neutral.${app}.3}` } },
-    border: { $type: "color", subtle: { $value: `{color.neutral.${app}.6}` }, default: { $value: `{color.neutral.${app}.7}` }, strong: { $value: `{color.neutral.${app}.8}` } },
-    text: { $type: "color", subtle: { $value: `{color.neutral.${app}.11}` }, primary: { $value: `{color.neutral.${app}.12}` } },
-    accent: { $type: "color", solid: { $value: `{color.${accentName}.${app}.9}` }, "solid-hover": { $value: `{color.${accentName}.${app}.10}` }, text: { $value: `{color.${accentName}.${app}.11}` } },
-  });
+  // ── semantic (one set per appearance) — the FULL role contract (roles.ts) ──
+  // bg/border/text alias the neutral scale's role bands (Radix mapping); text.disabled
+  // (neutral 8) and border.subtle/strong are contract roles whose CONTRAST is exempt
+  // by design — disabled text is the WCAG 1.4.3 exception, decorative separators are
+  // not 1.4.11 boundaries (roles.ts EXEMPT_PAIRS). The roles the scale cannot
+  // guarantee by aliasing alone are SOLVED per appearance:
+  //   • border.input — ≥3:1 (SC 1.4.11) against neutral step 3, the most extreme
+  //     canvas-class bg, so the gated bg.base/bg.surface rows pass a fortiori;
+  //   • accent.default — solved against EVERY bg the contract gates it on as text
+  //     (neutral step 3 for the canvas rows, accent step 3 = accent.subtle-bg) AND
+  //     for accent.on-accent (= neutral step 1) sitting on it — the dual constraint;
+  //   • accent.hover — one solve step further in the same direction (darker in light,
+  //     lighter in dark), so its on-accent pair only gains contrast;
+  //   • solid.<s> — the family's step 11 is already solved ≥4.5:1 against neutral
+  //     step 3, and step 1 is MORE extreme than step 3 in both appearances, so
+  //     solid.on-<s> passes a fortiori — re-solved only if that ever fails to hold.
+  // accent.focus-ring aliases accent.default: the dual solve clears 4.5:1 on every
+  // canvas bg, so the ring's non-text 3:1 rows hold by construction.
+  const accent = families.find((f) => f.name === accentName)!;
+  const statusNames = STATUS_FAMILIES.filter((s) => families.some((f) => f.name === s));
+
+  const semantic = (app: "light" | "dark"): Record<string, unknown> => {
+    const n = scales.get("neutral")![app];
+    const a = scales.get(accentName)![app];
+    const ref = (family: string, step: number) => ({ $value: `{color.${family}.${app}.${step}}` });
+
+    const inputCh = neutralCh * CFRAC[6]!; // the step-7 border band it replaces
+    const input = oklch(solveRoleL([{ against: n[2]!, target: 3 }], neutral.hue, inputCh, app), inputCh, neutral.hue);
+    const accentCh = famChroma(accent) * CFRAC[8]!; // the step-9 solid band
+    const defaultL = solveRoleL(
+      [
+        { against: n[2]!, target: 4.5 }, // accent.default on bg.base/surface/raised (worst case)
+        { against: a[2]!, target: 4.5 }, // accent.default on accent.subtle-bg
+        { against: n[0]!, target: 4.5 }, // accent.on-accent on accent.default
+      ],
+      accent.hue,
+      accentCh,
+      app,
+    );
+    const hoverL = r(defaultL + (app === "light" ? -0.01 : 0.01), 3);
+
+    const status: Record<string, unknown> = { $type: "color" };
+    const solid: Record<string, unknown> = { $type: "color" };
+    for (const s of statusNames) {
+      const fam = families.find((f) => f.name === s)!;
+      const step11 = scales.get(s)![app][10]!;
+      status[`${s}-bg`] = ref(s, 3);
+      status[`${s}-text`] = ref(s, 12);
+      solid[s] =
+        (contrastRatio(n[0]!, step11) ?? 0) >= 4.5
+          ? ref(s, 11)
+          : (() => {
+              const ch = famChroma(fam) * CFRAC[10]!;
+              return { $value: oklch(solveRoleL([{ against: n[0]!, target: 4.5 }], fam.hue, ch, app), ch, fam.hue) };
+            })();
+      solid[`on-${s}`] = ref("neutral", 1);
+    }
+
+    return {
+      bg: { $type: "color", base: ref("neutral", 1), surface: ref("neutral", 2), raised: ref("neutral", 3) },
+      border: { $type: "color", subtle: ref("neutral", 6), strong: ref("neutral", 8), input: { $value: input } },
+      text: {
+        $type: "color",
+        emphasis: ref("neutral", 12),
+        primary: ref("neutral", 12),
+        secondary: ref("neutral", 11),
+        muted: ref("neutral", 11),
+        disabled: ref("neutral", 8),
+      },
+      accent: {
+        $type: "color",
+        default: { $value: oklch(defaultL, accentCh, accent.hue) },
+        hover: { $value: oklch(hoverL, accentCh, accent.hue) },
+        "subtle-bg": ref(accentName, 3),
+        "on-accent": ref("neutral", 1),
+        "focus-ring": { $value: "{accent.default}" },
+      },
+      ...(statusNames.length > 0 ? { status, solid } : {}),
+    };
+  };
 
   const resolver: Resolver = {
     resolutionOrder: ["primitives", "theme"],
@@ -204,6 +312,7 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
   };
 
   // ── self-gate (P2): structure, resolution, contrast, scales ──
+  const manifest: SystemManifest = { gate: { level: "AA" } };
   const issues: TokenIssue[] = [];
   for (const [name, set] of Object.entries(source.sets)) {
     for (const it of validateTokens(set)) issues.push({ level: it.level, token: it.token, message: `[${name}] ${it.message}` });
@@ -211,18 +320,12 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
   const out = deriveDesignSystem(source);
   issues.push(...out.issues);
   for (const theme of out.themes) {
-    const get = (p: string) => theme.tokens.find((t) => t.path === p)?.value;
-    // Text must hold on EVERY canvas-class bg the semantic set aliases — a text token
-    // that only passes on bg.canvas fails the moment it sits on a card (bg.surface).
-    const pairs: Parameters<typeof checkContrast>[0] = [];
-    for (const bg of ["bg.canvas", "bg.subtle", "bg.surface"]) {
-      pairs.push(
-        { label: `${theme.name}: text.primary on ${bg}`, fg: get("text.primary"), bg: get(bg), level: "AAA" },
-        { label: `${theme.name}: text.subtle on ${bg}`, fg: get("text.subtle"), bg: get(bg) },
-        { label: `${theme.name}: accent.text on ${bg}`, fg: get("accent.text"), bg: get(bg) },
-      );
-    }
-    issues.push(...checkContrast(pairs));
+    // The contract pair source (roles.ts) — the same rules design:check gates on,
+    // legacy pairs included to mirror it exactly. The widened scaffold emits the full
+    // contract and NO legacy role names; the one role name the two vocabularies share
+    // (bg.surface) passes the pinned legacy `text.primary`@AAA row because step-12
+    // text is solved to 7:1 against the more extreme step 3.
+    issues.push(...checkContrast(contractPairs(theme, manifest.gate.level, { includeLegacy: true })));
   }
   issues.push(...checkTypeScale(TYPE_STEPS.map(([n]) => (size[n] as { $value: { value: number } }).$value.value), { ratio }));
   issues.push(...checkSpacingGrid(SPACE_MULT.map((m) => m * baseUnit), { base: baseUnit }));
@@ -237,5 +340,5 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
     ],
   };
 
-  return { source, evalSpec, issues };
+  return { source, evalSpec, manifest, issues };
 }

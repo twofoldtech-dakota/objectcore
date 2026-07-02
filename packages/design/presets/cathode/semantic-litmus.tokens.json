@@ -1,0 +1,101 @@
+{
+  "bg": {
+    "base": {
+      "$type": "color",
+      "$value": "{color.klaxon.50}"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "{color.klaxon.100}"
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "{color.klaxon.200}"
+    }
+  },
+  "border": {
+    "subtle": {
+      "$type": "color",
+      "$value": "{color.klaxon.200}"
+    },
+    "strong": {
+      "$type": "color",
+      "$value": "{color.klaxon.300}"
+    },
+    "input": {
+      "$type": "color",
+      "$value": "{color.graphite.600}"
+    }
+  },
+  "text": {
+    "emphasis": {
+      "$type": "color",
+      "$value": "{color.graphite.950}"
+    },
+    "primary": {
+      "$type": "color",
+      "$value": "{color.graphite.900}"
+    },
+    "secondary": {
+      "$type": "color",
+      "$value": "{color.graphite.850}"
+    },
+    "muted": {
+      "$type": "color",
+      "$value": "{color.graphite.850}"
+    },
+    "disabled": {
+      "$type": "color",
+      "$value": "{color.klaxon.400}"
+    }
+  },
+  "accent": {
+    "default": {
+      "$type": "color",
+      "$value": "{color.klaxon.900}"
+    },
+    "hover": {
+      "$type": "color",
+      "$value": "{color.klaxon.950}"
+    },
+    "subtle-bg": {
+      "$type": "color",
+      "$value": "{color.klaxon.200}"
+    },
+    "on-accent": {
+      "$type": "color",
+      "$value": "{color.klaxon.50}"
+    },
+    "focus-ring": {
+      "$type": "color",
+      "$value": "{color.klaxon.900}"
+    }
+  },
+  "status": {
+    "success-bg": {
+      "$type": "color",
+      "$value": "{color.pulse.300}"
+    },
+    "success-text": {
+      "$type": "color",
+      "$value": "{color.pulse.950}"
+    },
+    "warning-bg": {
+      "$type": "color",
+      "$value": "{color.flare.300}"
+    },
+    "warning-text": {
+      "$type": "color",
+      "$value": "{color.flare.950}"
+    },
+    "danger-bg": {
+      "$type": "color",
+      "$value": "{color.klaxon.300}"
+    },
+    "danger-text": {
+      "$type": "color",
+      "$value": "{color.klaxon.950}"
+    }
+  },
+  "$description": "Litmus — Test-strip pink, acid-checked — diagnosis in daylight. (light)"
+}

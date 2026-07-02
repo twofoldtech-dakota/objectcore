@@ -18,6 +18,9 @@ export interface FlatToken {
   type?: TokenType;
   rawValue: unknown;
   description?: string;
+  /** The token's OWN `$extensions` (verbatim passthrough — no group inheritance,
+   *  no resolution through references). */
+  extensions?: Record<string, unknown>;
 }
 
 export interface ResolveResult {
@@ -31,11 +34,14 @@ export function flattenTokens(tree: Record<string, unknown>): FlatToken[] {
   const walk = (node: Record<string, unknown>, path: string, inherited: TokenType | undefined): void => {
     if (isToken(node)) {
       const own = TOKEN_TYPES.includes(node.$type as TokenType) ? (node.$type as TokenType) : undefined;
+      const ext = node.$extensions;
       out.push({
         path,
         type: own ?? inherited,
         rawValue: (node as { $value: unknown }).$value,
         description: typeof node.$description === "string" ? node.$description : undefined,
+        extensions:
+          typeof ext === "object" && ext !== null && !Array.isArray(ext) ? (ext as Record<string, unknown>) : undefined,
       });
       return;
     }
@@ -101,7 +107,7 @@ export function resolveAliases(tree: Record<string, unknown>): ResolveResult {
       issues.push({ level: "error", token: t.path, message: "cannot resolve `$type` (no explicit type and no resolvable reference)" });
       continue;
     }
-    resolved.push({ path: t.path, type, value, description: t.description });
+    resolved.push({ path: t.path, type, value, description: t.description, extensions: t.extensions });
   }
   resolved.sort((a, b) => a.path.localeCompare(b.path));
   return { resolved, issues };

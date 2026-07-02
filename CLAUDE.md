@@ -27,8 +27,9 @@ bun run forge:meta <meta-spec.json> [--force]  # generate a new meta-plugin (gov
 bun run forge:suggest            # F7: derive improvement suggestions from eval evidence (read-only)
 bun run forge:improve <spec>     # F7: apply a forge refinement inside the self-edit boundary
 bun run design:scaffold <spec.json> [--force]  # plan 012: scaffold a DTCG design-token system (accessible by construction)
+bun run design:seed <preset> [--name <s>] [--themes a,b] [--list] [--force]  # plan 014: instantiate a curated seeded theme preset (inkwell|cathode) — quick start, same self-gate
 bun run design:check             # plan 012: validate + contrast-gate every design/ system (part of check)
-bun run design:build             # plan 012: derive the token views (CSS vars, per-theme JSON, Tailwind, Style Dictionary)
+bun run design:build             # plan 012/014: derive the token views (CSS vars, per-theme JSON, Tailwind, Style Dictionary, spec.html + contrast-proof.json)
 bun run release:status           # Stage 2: preview what the pending changesets would release
 bun run release:version          # Stage 2: consume changesets -> bump plugin.json + changelogs + re-derive
 bun run release:publish          # Stage 2: tag {plugin}--v{semver}, SHA-pin the catalog, (CI) attest
@@ -279,6 +280,34 @@ forge MCP *primitive*, scaffolding `.mcp.json`; the KB server is hand-authored.)
   without the evidence file. No skill, so the hook+agent combo can't
   clash on activation. With F4 the Reflexion/EDDOps loop is *closed*: the gate's
   structured evidence feeds the generator automatically, not just on a human's say-so.
+
+### design system + `@objectcore/design` (plans 012 + 014)
+
+`packages/design` is the design-token engine (zero-dep pure core, same ports+adapters discipline):
+DTCG `validateTokens`/`resolveAliases` → the **`deriveDesignSystem` seam** (multi-set + resolver,
+N named themes) → the deterministic gate → sinks. Systems live in `design/<name>/` (token sets +
+`resolver.json` + `system.json` manifest + `evals/design.json`); `design:check` gates every
+committed system inside `bun run check`. Two paths produce a system, both ending at the same gate:
+
+- **Full creation** (`design:scaffold <brief.json>`): expands a compact brief into an
+  accessible-by-construction SSOT (OKLCH 12-step scales, solved text/border/accent lightness).
+- **Quick start** (`design:seed <preset>`, plan 014): instantiates a **curated seeded preset** —
+  `inkwell` (quiet/editorial/warm paper, 6 themes) or `cathode` (loud/technical/emissive, 9
+  themes) from `packages/design/presets/`, optionally subset via `--themes`. Presets are checked-in
+  engine-native DTCG (converted once from the POC, never at load time) and are **verified at AAA by
+  the gate's own math at instantiation and in `presets.test.ts` — measured, not promised.**
+
+Both paths emit the same **semantic role contract** (`roles.ts`: `bg.base/surface/raised`,
+`border.subtle/strong/input`, `text.emphasis…disabled`, `accent.default/hover/subtle-bg/on-accent/
+focus-ring`, `status.*`, `solid.*`); `proof.ts`'s `proveContrast` is the single contrast-math
+source — `design:check`'s gate and the generated proof artifacts are literally the same evaluation.
+Each system's `system.json` declares its gate level (`AA`|`AAA`) and coverage; legacy narrow-contract
+systems keep gating via presence-checked `LEGACY_PAIRS`. `design:build` derives all views into
+`dist/` (gitignored): CSS vars, per-theme JSON, Tailwind `@theme`, Style Dictionary, plus
+**`spec.html`** — a self-contained interactive specimen page (theme switcher, click-to-copy ramps,
+role docs with per-preset editorial copy from `spec-copy.json`, and a contrast-proof table computed
+from `proveContrast`) — and `contrast-proof.json`. `plugins/design-forge`'s `/design` command forks
+quick-start vs full grill; the `choosing-a-seeded-theme` skill carries the preset inventory.
 
 ### Repo CLI wiring (`scripts/_workspace.ts`, `scripts/_finalize.ts`)
 

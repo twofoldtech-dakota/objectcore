@@ -1,0 +1,51 @@
+{
+  "title": "Cathode.",
+  "kicker": "57 original values · emission, not absorption · AAA at full brightness",
+  "tagline": "Phosphor on dark glass, one live wire of cyan. Where inkwell absorbs light, cathode emits it — a color system for agentic products that ship signal, and can prove it.",
+  "principles": [
+    {
+      "title": "Emission, not absorption.",
+      "body": "Inkwell is ink soaking into paper. Cathode is phosphor firing at glass. Same rigor, opposite direction — built to be noticed and still be trusted."
+    },
+    {
+      "title": "One live wire.",
+      "body": "Volt is the only interactive current. If it's cyan, it conducts; if it doesn't conduct, it is never cyan. Voltage stays precious or it stops meaning anything."
+    },
+    {
+      "title": "State is a lamp.",
+      "body": "Pulse, flare and klaxon are indicator lights — lit only when the machine has something to report. A lamp that is always on reports nothing."
+    },
+    {
+      "title": "Day is the guest.",
+      "body": "Glass is the default; daylight is the away kit. Both first-class, both measured — but this system was born after dark."
+    }
+  ],
+  "rampNotes": {
+    "graphite": "cold glass, day to dark — the chassis",
+    "volt": "the only live wire — azure current",
+    "pulse": "the lamp for “signal clear”",
+    "flare": "the lamp for “check input”",
+    "klaxon": "the lamp for “signal lost”"
+  },
+  "roleNotes": {
+    "bg.base": "The glass. Everything is projected onto it.",
+    "bg.surface": "Cards, panels, rails.",
+    "bg.raised": "Nested surfaces, code, hover fills.",
+    "border.subtle": "Hairlines and dividers.",
+    "border.strong": "Emphasized edges.",
+    "border.input": "Form-control boundary — ≥ 3:1 (WCAG 1.4.11).",
+    "text.emphasis": "Headlines, key numbers.",
+    "text.primary": "Working text.",
+    "text.secondary": "Body copy, long-form.",
+    "text.muted": "Timestamps, captions — still 7:1.",
+    "text.disabled": "Disabled controls only. WCAG-exempt.",
+    "accent.default": "Links, primary actions, selection.",
+    "accent.hover": "The pressed and hovered current.",
+    "accent.subtle-bg": "Selected rows, quiet charge.",
+    "accent.on-accent": "Text on solid volt.",
+    "accent.focus-ring": "The focus indicator — ≥ 3:1 against every canvas.",
+    "status.success-text": "Signal clear. Lit means done.",
+    "status.warning-text": "Check input. A human is needed.",
+    "status.danger-text": "Signal lost. Says so instantly."
+  }
+}

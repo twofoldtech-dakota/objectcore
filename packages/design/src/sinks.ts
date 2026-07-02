@@ -10,6 +10,8 @@
 
 import type { DesignSystemOutput, DerivedTheme } from "./derive";
 import type { ResolvedToken, TokenType } from "./tokens";
+import type { ProofOptions } from "./proof";
+import { proveContrast } from "./proof";
 
 export interface SinkFile {
   path: string;
@@ -27,7 +29,7 @@ const CSS_FUNCTION_SPACES = new Set(["oklch", "oklab", "lch", "lab", "hsl", "hwb
 
 /** A resolved color value → a CSS color string (functional/`color()` form, or a
  *  passthrough for an authored hex/CSS string). */
-function colorToCss(v: unknown): string {
+export function colorToCss(v: unknown): string {
   if (typeof v === "string") return v;
   if (isObj(v) && typeof v.colorSpace === "string" && Array.isArray(v.components)) {
     const comps = v.components.map((c) => (c === "none" ? "none" : String(c))).join(" ");
@@ -120,7 +122,11 @@ function gradientToCss(v: unknown): string {
 /** `color.accent.9` → `--color-accent-9`. */
 const cssVarName = (path: string): string => `--${path.replace(/\./g, "-")}`;
 
-function themeBlock(theme: DerivedTheme): string {
+/** One theme's tokens as CSS custom-property declaration lines (two-space indented,
+ *  newline-joined, no selector) — the body CssVarSink wraps in `:root` /
+ *  `[data-theme]`, exported so other renderers (the spec page) emit the SAME
+ *  declarations rather than a second serialization path. */
+export function themeDecls(theme: DerivedTheme): string {
   const lines: string[] = [];
   for (const token of theme.tokens) {
     for (const [suffix, value] of cssPairs(token)) {
@@ -139,7 +145,7 @@ export class CssVarSink implements TokenSink {
     const blocks: string[] = [];
     output.themes.forEach((theme, i) => {
       const selector = i === 0 ? ":root" : `[data-theme="${theme.name}"]`;
-      blocks.push(`${selector} {\n${themeBlock(theme)}\n}`);
+      blocks.push(`${selector} {\n${themeDecls(theme)}\n}`);
     });
     return [{ path: this.fileName, content: blocks.join("\n\n") + "\n" }];
   }
@@ -152,6 +158,20 @@ export class JsonSink implements TokenSink {
       path: `${theme.name}.tokens.json`,
       content: JSON.stringify(Object.fromEntries(theme.tokens.map((t) => [t.path, t.value])), null, 2) + "\n",
     }));
+  }
+}
+
+/** Emits `contrast-proof.json`: every measured contract pair (`proveContrast`) —
+ *  the "measured, not promised" build artifact. The spec page's proof table and
+ *  this file are views of the SAME gate math, never a second computation. */
+export class ProofSink implements TokenSink {
+  constructor(
+    private readonly opts: ProofOptions,
+    private readonly fileName = "contrast-proof.json",
+  ) {}
+
+  emit(output: DesignSystemOutput): SinkFile[] {
+    return [{ path: this.fileName, content: JSON.stringify(proveContrast(output, this.opts), null, 2) + "\n" }];
   }
 }
 

@@ -1,13 +1,13 @@
 {
   "bg": {
     "$type": "color",
-    "canvas": {
+    "base": {
       "$value": "{color.neutral.dark.1}"
     },
-    "subtle": {
+    "surface": {
       "$value": "{color.neutral.dark.2}"
     },
-    "surface": {
+    "raised": {
       "$value": "{color.neutral.dark.3}"
     }
   },
@@ -16,32 +16,110 @@
     "subtle": {
       "$value": "{color.neutral.dark.6}"
     },
-    "default": {
-      "$value": "{color.neutral.dark.7}"
-    },
     "strong": {
       "$value": "{color.neutral.dark.8}"
+    },
+    "input": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.55,
+          0.0016,
+          264
+        ]
+      }
     }
   },
   "text": {
     "$type": "color",
-    "subtle": {
-      "$value": "{color.neutral.dark.11}"
+    "emphasis": {
+      "$value": "{color.neutral.dark.12}"
     },
     "primary": {
       "$value": "{color.neutral.dark.12}"
+    },
+    "secondary": {
+      "$value": "{color.neutral.dark.11}"
+    },
+    "muted": {
+      "$value": "{color.neutral.dark.11}"
+    },
+    "disabled": {
+      "$value": "{color.neutral.dark.8}"
     }
   },
   "accent": {
     "$type": "color",
-    "solid": {
-      "$value": "{color.accent.dark.9}"
+    "default": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.64,
+          0.15,
+          264
+        ]
+      }
     },
-    "solid-hover": {
-      "$value": "{color.accent.dark.10}"
+    "hover": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [
+          0.65,
+          0.15,
+          264
+        ]
+      }
     },
-    "text": {
-      "$value": "{color.accent.dark.11}"
+    "subtle-bg": {
+      "$value": "{color.accent.dark.3}"
+    },
+    "on-accent": {
+      "$value": "{color.neutral.dark.1}"
+    },
+    "focus-ring": {
+      "$value": "{accent.default}"
+    }
+  },
+  "status": {
+    "$type": "color",
+    "success-bg": {
+      "$value": "{color.success.dark.3}"
+    },
+    "success-text": {
+      "$value": "{color.success.dark.12}"
+    },
+    "warning-bg": {
+      "$value": "{color.warning.dark.3}"
+    },
+    "warning-text": {
+      "$value": "{color.warning.dark.12}"
+    },
+    "danger-bg": {
+      "$value": "{color.danger.dark.3}"
+    },
+    "danger-text": {
+      "$value": "{color.danger.dark.12}"
+    }
+  },
+  "solid": {
+    "$type": "color",
+    "success": {
+      "$value": "{color.success.dark.11}"
+    },
+    "on-success": {
+      "$value": "{color.neutral.dark.1}"
+    },
+    "warning": {
+      "$value": "{color.warning.dark.11}"
+    },
+    "on-warning": {
+      "$value": "{color.neutral.dark.1}"
+    },
+    "danger": {
+      "$value": "{color.danger.dark.11}"
+    },
+    "on-danger": {
+      "$value": "{color.neutral.dark.1}"
     }
   }
 }

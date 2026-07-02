@@ -1,0 +1,28 @@
+{
+  "solid": {
+    "success": {
+      "$type": "color",
+      "$value": "{color.moss.800}"
+    },
+    "on-success": {
+      "$type": "color",
+      "$value": "{color.moss.50}"
+    },
+    "warning": {
+      "$type": "color",
+      "$value": "{color.ochre.800}"
+    },
+    "on-warning": {
+      "$type": "color",
+      "$value": "{color.ochre.50}"
+    },
+    "danger": {
+      "$type": "color",
+      "$value": "{color.clay.800}"
+    },
+    "on-danger": {
+      "$type": "color",
+      "$value": "{color.clay.50}"
+    }
+  }
+}
