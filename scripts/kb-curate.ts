@@ -10,10 +10,13 @@
 
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
-import { FileKnowledgeStore } from "@objectcore/knowledge";
+import { FileKnowledgeStore, findNearDuplicates, isActive } from "@objectcore/knowledge";
 import type { KnowledgeEntryInput, KnowledgeEntryPatch } from "@objectcore/knowledge";
 
 const args = process.argv.slice(2);
+
+// --force skips the write-time near-duplicate refusal on the --supersede path (WP4).
+const force = args.includes("--force");
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -71,6 +74,24 @@ try {
     const oldId = flagArg("--supersede");
     if (!oldId) fail("--supersede needs an <old-id>");
     const input = readJson() as KnowledgeEntryInput;
+    // Write-time dedup (WP4): the replacement must not near-duplicate a DIFFERENT active
+    // entry. `excludeIds: [oldId]` lets it legitimately resemble the entry it replaces.
+    if (!force) {
+      const active = (await store.list()).filter(isActive);
+      const dups = findNearDuplicates(
+        { title: input.title, tags: input.tags, body: input.body },
+        active,
+        { excludeIds: [oldId] },
+      );
+      if (dups.length) {
+        for (const d of dups) {
+          console.error(
+            `✗ near-duplicate of "${d.id}" (score ${d.score.toFixed(2)}) — update or supersede it (bun run kb:curate), or pass --force`,
+          );
+        }
+        process.exit(1);
+      }
+    }
     const { superseded, replacement } = await store.supersede(oldId, input);
     console.log(
       `✓ superseded "${superseded.id}" → "${replacement.id}"; INDEX.md regenerated.`,
