@@ -75,6 +75,15 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
+      # actions/checkout persists an Authorization extraheader in git config;
+      # create-pull-request configures its own. Both get sent -> GitHub rejects the
+      # request with `400: Duplicate header "Authorization"`. Drop the persisted one —
+      # safe here because the version leg and the tag-pushing publish leg are mutually
+      # exclusive (steps.detect), so nothing after this step needs checkout's credential.
+      - name: Drop checkout's persisted credential (avoid duplicate Authorization header)
+        if: steps.detect.outputs.count != '0'
+        run: git config --local --unset-all http.https://github.com/.extraheader || true
+
       # RELEASE_PAT (a fine-grained PAT or GitHub App token with contents +
       # pull-requests write) makes ci.yml actually run on the Version PR — refs created
       # by the default GITHUB_TOKEN fire no workflows. Inert until the secret is set
