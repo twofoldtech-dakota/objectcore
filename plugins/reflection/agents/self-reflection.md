@@ -29,7 +29,10 @@ gate pass.
    `bun run kb:search '<failure keywords>'` (deterministic lexical retrieval over the
    knowledge base) and read any hit that looks applicable — the factory may already have
    captured this exact failure, so reuse the lesson instead of rederiving it (the red-gate
-   hook may have already named the likely entries).
+   hook may have already named the likely entries). When a prior lesson actually informs
+   the fix, cite it so its ROI is tracked —
+   `bun run kb:cite <id> --source "reflection:<failing-case>"` — and list it on the
+   `applied:` line below.
 2. **Diagnose the root cause.** Name the mechanism, e.g.:
    - activation misroute → the skill `description` (trigger surface) is too broad or
      overlaps a sibling — tighten the *description*, never the cases;
@@ -43,12 +46,17 @@ gate pass.
    `bun run kb:check` / `bun run build:marketplace`). Re-derive through the seam;
    never hand-edit `marketplace.json` or `knowledge/INDEX.md`.
 4. **Extract the durable lesson (if any).** Ask: would this bite a *future* plugin,
-   not just this one? If yes, capture it:
+   not just this one? If yes, capture it — always stamp the loop's provenance with
+   `"origin":"reflection"`:
    ```bash
-   bun run kb:add --json '{"type":"gotcha","title":"...","tags":["..."],"source":"<file|url>","body":"..."}'
+   bun run kb:add --json '{"type":"gotcha","title":"...","tags":["..."],"source":"<file|url>","origin":"reflection","body":"..."}'
    ```
    Pick `type` = `lesson | pattern | gotcha | decision`. One crisp fact per entry;
-   cite a real source. If the failure was a one-off typo, do NOT write an entry.
+   cite a real source. If a Step 1 search hit is now WRONG or outdated (rather than
+   missing), do NOT write a near-duplicate — `kb:add` will refuse it anyway;
+   **supersede** it instead:
+   `bun run kb:curate --supersede <old-id> --json '{"type":"...","origin":"reflection",...}'`.
+   If the failure was a one-off typo, do NOT write an entry.
 
 ## Output (return exactly this shape)
 ```
@@ -63,4 +71,4 @@ lesson:    <kb entry id captured, or "none — not durable">
 - Structured, not free-form. Diagnose the mechanism; don't guess.
 - Never weaken cases to pass a gate; fix the description/body/version instead.
 - One durable lesson per entry; skip transient/one-off fixes.
-- All catalog/KB writes go through the scripts (`build:marketplace`, `kb:add`/`kb:index`), never by hand.
+- All catalog/KB writes go through the scripts (`build:marketplace`, `kb:add`/`kb:curate`/`kb:index`), never by hand.

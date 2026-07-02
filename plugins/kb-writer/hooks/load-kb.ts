@@ -14,7 +14,7 @@ try {
   console.log(
     "# Project knowledge base — prior lessons (read before acting)\n\n" +
       index +
-      "\nOpen an entry under knowledge/entries/<id>.md on demand; capture new durable lessons with `bun run kb:add`.",
+      "\nOpen an entry under knowledge/entries/<id>.md on demand, or run `bun run kb:search '<topic>'` to retrieve by keyword; capture new durable lessons with `bun run kb:add`.",
   );
 } catch {
   // No knowledge/ in this project — nothing to surface.
