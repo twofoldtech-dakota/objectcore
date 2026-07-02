@@ -36,6 +36,12 @@ bun run check:catalog            # read-only: validate every plugin + assert mar
 bun run kb:add --json '<entry>'  # append a knowledge-base entry (lesson|pattern|gotcha|decision) + regenerate INDEX.md
 bun run kb:index                 # regenerate knowledge/INDEX.md from knowledge/entries/ (INDEX.md is a build artifact)
 bun run kb:check                 # read-only: parse entries + assert INDEX.md is in sync and within budget (part of check)
+bun run kb:curate --<mode> <id> [--json '<...>']  # plan 013: KB lifecycle (mode=update|supersede|deprecate|verify) — supersede/deprecate archive to the active-only INDEX (bounded forgetting)
+bun run kb:search '<query>' [--k N] [--type <t>]  # plan 013: deterministic lexical retrieval over the KB (pure searchEntries; offline retrieval evals gate kb:check)
+bun run kb:verify [<id>...]  # plan 013: classify active entries fresh|stale|unverifiable from source+git (local-only curation; NOT part of check)
+bun run kb:cite <id> [--source '<ref>']  # plan 013: record a citation to metrics/kb-usage.jsonl (the KB's usage/ROI signal for kb:stats)
+bun run kb:stats                 # plan 013: join entries × citations × staleness → rank prune candidates (stale→never-cited→oldest)
+bun run kb:mcp                   # plan 013: serve the KB over MCP/stdio (packages/knowledge-mcp) — kb://index + kb://entries/{id} + kb_search/kb_add/kb_cite
 bun run check                    # the one-command gate = tsc + check:catalog + kb:check + design:check + test + eval (CI runs this verbatim)
 bun run clean:git                # git hygiene: prune stale worktrees + delete merged branches (--dry-run | --gone | --remote)
 bun run registry:dev            # serve http://localhost:8787/v1/marketplace.json (Git source, dev loop)
@@ -215,23 +221,44 @@ Stage 3 operates the HTTP backend and flips the catalog source from Git to a DB 
 
 The factory's growing memory — the substrate the self-improving loop is built on
 (roadmap: `plans/008-foundational-agentic-roadmap.md`, evidence:
-`plans/notes/008-agentic-research-findings.md`). It applies the same **storage-is-a-port**
+`plans/notes/008-agentic-research-findings.md`; the lifecycle/retrieval/MCP upgrade is
+`plans/013-kb-agent-memory-upgrade.md`). It applies the same **storage-is-a-port**
 discipline as the catalog: `KnowledgeStore` (`packages/knowledge/src/types.ts`) is
 the seam; **`FileKnowledgeStore`** is operated now (git-tracked `knowledge/entries/<id>.md`,
 one frontmatter'd file per entry, diffable in PRs so every written lesson is
-reviewable). A `DbKnowledgeStore` (Turso, reusing `@objectcore/registry-db`) and an
-**MCP resource server** (an *access* seam over a store, the KB's analogue of the
-`/v1/marketplace.json` route) are later adapters; nothing above the port changes when
-they land. F5 built the forge MCP *primitive* (scaffold `.mcp.json`) that could one day
-*package* such a server, but the KB resource server itself is still unbuilt.
+reviewable). The **MCP resource server** (an *access* seam over a store, the KB's
+analogue of the `/v1/marketplace.json` route) is now **built** (`packages/knowledge-mcp`,
+below); a `DbKnowledgeStore` (Turso, reusing `@objectcore/registry-db`) is the one
+remaining later adapter — nothing above the port changes when it lands. (F5 built the
+forge MCP *primitive*, scaffolding `.mcp.json`; the KB server is hand-authored.)
 
 - **`knowledge/INDEX.md` is a build artifact**, like `marketplace.json`: generated
   by `renderIndex` (pure) via `bun run kb:index`, never hand-edited. `bun run kb:check`
-  (in `bun run check`) parses every entry and asserts INDEX.md byte-matches a fresh
-  render and stays within the **200-line / 25KB** loaded-at-startup budget — overflow
-  is the deliberate curate/prune (rot) signal.
+  (in `bun run check`) parses every entry, asserts INDEX.md byte-matches a fresh render
+  (over **active** entries — superseded/deprecated ones drop out), runs the offline
+  retrieval evals + lifecycle integrity checks, and enforces the **200-line / 25KB**
+  loaded-at-startup budget (now bounding **active** entries only) — overflow is the
+  deliberate curate/prune (rot) signal.
 - **Entry types**: `lesson | pattern | gotcha | decision`. Zero-dep frontmatter
   parse/serialize (`frontmatter.ts`), keeping the package pure like registry-core.
+- **Lifecycle + retrieval + usage (plan 013)**: entries carry optional lifecycle
+  fields (`status`/`supersededBy`/`updated`/`verifiedAt`/`origin`/`links`) and the port
+  gains `update`/`supersede`, so `bun run kb:curate` updates/supersedes/deprecates/verifies
+  — the loaded INDEX forgets (active-only) while git keeps the file (*bounded forgetting*).
+  Retrieval is deterministic zero-dep lexical scoring (`searchEntries` → `bun run kb:search`),
+  gated by offline retrieval evals in `kb:check` (determinism is what makes them gate-safe;
+  an embedding/judge reranker is a deferred adapter behind the same API). Writes are
+  dedup-guarded (`findNearDuplicates` refuses a near-duplicate at the `kb:add`/`kb:curate`
+  edge; `--force` overrides). Usage/ROI is an append-only `metrics/kb-usage.jsonl`
+  (`bun run kb:cite`) ranked by `bun run kb:stats`; staleness is `bun run kb:verify`
+  (git evidence at the edge, never in the gate — CI clones are shallow).
+- **`@objectcore/knowledge-mcp`** (`packages/knowledge-mcp`, plan 013) is the KB's
+  **access seam** — an MCP stdio server (`bun run kb:mcp`) exposing `kb://index` +
+  `kb://entries/{id}` resources and `kb_search`/`kb_add`/`kb_cite` tools over the same
+  `FileKnowledgeStore`. It is the **only** package depending on `@modelcontextprotocol/sdk`
+  (the core stays zero-dep, mirroring `@libsql/client` in registry-db); a repo-root
+  `.mcp.json` dogfoods it. Shipping it as a *catalog plugin* is deferred behind bundling
+  + the CI-only provenance gate.
 - **`knowledge-base`** (`plugins/knowledge-base/`, governance meta-plugin) is the
   human/agent runbook: `/remember` + the `curating-knowledge` skill over the store.
 - **`kb-writer`** (`plugins/kb-writer/`, F2, hooks-only) is the KB's automated
@@ -242,11 +269,14 @@ they land. F5 built the forge MCP *primitive* (scaffold `.mcp.json`) that could 
 - **`reflection`** (`plugins/reflection/`, F3 + F4) is the **reflection loop**: a
   `self-reflection` subagent (Reflexion's lesson *generator* — given a gate/eval
   failure it diagnoses the root cause, proposes the minimal fix, and when durable
-  writes a lesson via `bun run kb:add`) **plus (F4) a `PostToolUse` hook**
-  (`hooks/on-gate-failure.ts`) that auto-invokes it: after a gate command it reads
+  writes a lesson via `bun run kb:add` — search-first, stamped `origin: reflection`,
+  superseding a wrong prior lesson rather than duplicating it) **plus (F4) a `PostToolUse`
+  hook** (`hooks/on-gate-failure.ts`) that auto-invokes it: after a gate command it reads
   `dist/eval-evidence.json` and, only when the gate is RED, injects context nudging
-  delegation to `self-reflection` (self-gating — silent on ordinary Bash calls and in
-  any project without the evidence file). No skill, so the hook+agent combo can't
+  delegation to `self-reflection` and surfaces the KB entries most likely to apply (an
+  inline lexical match over `knowledge/entries/`, never a workspace import — the hook
+  ships standalone). Self-gating — silent on ordinary Bash calls and in any project
+  without the evidence file. No skill, so the hook+agent combo can't
   clash on activation. With F4 the Reflexion/EDDOps loop is *closed*: the gate's
   structured evidence feeds the generator automatically, not just on a human's say-so.
 

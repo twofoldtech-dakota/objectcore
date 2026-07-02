@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Before stopping: did this session produce a durable lesson, pattern, gotcha, or decision worth keeping? If so, capture it in the project knowledge base (use the curating-knowledge skill or `bun run kb:add`). If nothing durable emerged, just stop.",
+            "prompt": "Before stopping: did this session produce a durable lesson, pattern, gotcha, or decision worth keeping? If so, first check it isn't already captured with `bun run kb:search`, then add it to the project knowledge base (use the curating-knowledge skill or `bun run kb:add`; update or supersede an existing entry with `bun run kb:curate` instead of duplicating it). If nothing durable emerged, or the lesson is already captured, stop silently — do not narrate this check.",
             "timeout": 30
           }
         ]
