@@ -18,6 +18,8 @@ import type { TokenIssue } from "./schema";
 import { validateTokens } from "./schema";
 import { contrastRatio } from "./color";
 import { checkContrast, checkTypeScale, checkSpacingGrid, M3_EASINGS } from "./gate";
+import { contractPairs } from "./roles";
+import type { SystemManifest } from "./sources";
 import type { DesignBrief } from "./judge";
 import type { DesignEvalSpec } from "./evaluate";
 
@@ -49,6 +51,8 @@ export interface ScaffoldSpec {
 export interface ScaffoldResult {
   source: DesignSystemSource;
   evalSpec: DesignEvalSpec;
+  /** The `system.json` to write alongside the sets (what the system is gated to). */
+  manifest?: SystemManifest;
   /** Self-gate issues — empty for a well-formed brief (the scaffold is accessible by construction). */
   issues: TokenIssue[];
 }
@@ -204,6 +208,7 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
   };
 
   // ── self-gate (P2): structure, resolution, contrast, scales ──
+  const manifest: SystemManifest = { gate: { level: "AA" } };
   const issues: TokenIssue[] = [];
   for (const [name, set] of Object.entries(source.sets)) {
     for (const it of validateTokens(set)) issues.push({ level: it.level, token: it.token, message: `[${name}] ${it.message}` });
@@ -211,18 +216,11 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
   const out = deriveDesignSystem(source);
   issues.push(...out.issues);
   for (const theme of out.themes) {
-    const get = (p: string) => theme.tokens.find((t) => t.path === p)?.value;
-    // Text must hold on EVERY canvas-class bg the semantic set aliases — a text token
-    // that only passes on bg.canvas fails the moment it sits on a card (bg.surface).
-    const pairs: Parameters<typeof checkContrast>[0] = [];
-    for (const bg of ["bg.canvas", "bg.subtle", "bg.surface"]) {
-      pairs.push(
-        { label: `${theme.name}: text.primary on ${bg}`, fg: get("text.primary"), bg: get(bg), level: "AAA" },
-        { label: `${theme.name}: text.subtle on ${bg}`, fg: get("text.subtle"), bg: get(bg) },
-        { label: `${theme.name}: accent.text on ${bg}`, fg: get("accent.text"), bg: get(bg) },
-      );
-    }
-    issues.push(...checkContrast(pairs));
+    // The contract pair source (roles.ts) — the same rules design:check gates on.
+    // The scaffold still emits the NARROW legacy vocabulary, so the presence-gated
+    // legacy pairs carry the gating (text must hold on EVERY canvas-class bg —
+    // a text token that only passes on bg.canvas fails the moment it sits on a card).
+    issues.push(...checkContrast(contractPairs(theme, manifest.gate.level, { includeLegacy: true })));
   }
   issues.push(...checkTypeScale(TYPE_STEPS.map(([n]) => (size[n] as { $value: { value: number } }).$value.value), { ratio }));
   issues.push(...checkSpacingGrid(SPACE_MULT.map((m) => m * baseUnit), { base: baseUnit }));
@@ -237,5 +235,5 @@ export function scaffoldDesignSystem(spec: ScaffoldSpec): ScaffoldResult {
     ],
   };
 
-  return { source, evalSpec, issues };
+  return { source, evalSpec, manifest, issues };
 }

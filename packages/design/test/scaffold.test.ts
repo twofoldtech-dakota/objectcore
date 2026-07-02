@@ -70,6 +70,11 @@ test("text holds on ALL canvas-class backgrounds (canvas/subtle/surface), both t
   }
 });
 
+test("scaffold fills the system manifest (gated at AA)", () => {
+  const { manifest } = scaffoldDesignSystem(spec);
+  expect(manifest).toEqual({ gate: { level: "AA" } });
+});
+
 test("scaffold produces a starter design.json with an on-brand bracket", () => {
   const { evalSpec } = scaffoldDesignSystem(spec);
   expect(evalSpec.brief.adjectives).toEqual(["modern", "trustworthy"]);
